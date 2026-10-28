@@ -1,0 +1,35 @@
+{
+  "id": "realcugan-ncnn",
+  "name": "Real-CUGAN",
+  "vendor": "Bilibili AI Lab",
+  "description": "Cascaded U-Net trained on anime. Sharp line art with adjustable denoising, from conservative to aggressive.",
+  "homepage": "https://github.com/nihui/realcugan-ncnn-vulkan",
+  "license": "MIT",
+  "tags": ["CNN", "Anime"],
+  "requirements": "Any GPU with Vulkan",
+  "media": ["image", "video"],
+  "input": "image",
+  "batch": true,
+  "install": {
+    "type": "archive",
+    "size": "30 MB",
+    "urls": {
+      "linux": "https://github.com/nihui/realcugan-ncnn-vulkan/releases/download/20220728/realcugan-ncnn-vulkan-20220728-ubuntu.zip",
+      "windows": "https://github.com/nihui/realcugan-ncnn-vulkan/releases/download/20220728/realcugan-ncnn-vulkan-20220728-windows.zip",
+      "darwin": "https://github.com/nihui/realcugan-ncnn-vulkan/releases/download/20220728/realcugan-ncnn-vulkan-20220728-macos.zip"
+    }
+  },
+  "executable": {"windows": "realcugan-ncnn-vulkan.exe", "*": "realcugan-ncnn-vulkan"},
+  "args": ["-i", "{input}", "-o", "{output}", "-s", "{scale}", "{modelArgs}", "-f", "png"],
+  "gpuArgs": ["-g", "{gpu}"],
+  "outputExt": ".png",
+  "scales": [2, 3, 4],
+  "defaultScale": 2,
+  "models": [
+    {"id": "se-conservative", "name": "SE · Conservative", "description": "Keeps the most original texture.", "args": ["-m", "models-se", "-n", "-1"]},
+    {"id": "se-no-denoise", "name": "SE · No denoise", "description": "Upscales without cleaning.", "args": ["-m", "models-se", "-n", "0"]},
+    {"id": "se-denoise3x", "name": "SE · Strong denoise", "description": "For noisy or heavily compressed sources.", "args": ["-m", "models-se", "-n", "3"]},
+    {"id": "pro-conservative", "name": "Pro · Conservative", "description": "Newer weights, finer detail.", "args": ["-m", "models-pro", "-n", "-1"], "scales": [2, 3]},
+    {"id": "pro-denoise3x", "name": "Pro · Strong denoise", "description": "Newer weights with strong cleaning.", "args": ["-m", "models-pro", "-n", "3"], "scales": [2, 3]}
+  ]
+}

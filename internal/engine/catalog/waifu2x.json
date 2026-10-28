@@ -1,0 +1,33 @@
+{
+  "id": "waifu2x-ncnn",
+  "name": "waifu2x",
+  "vendor": "nagadomi · nihui",
+  "description": "The classic upscaler for drawings and anime art, with photo models too. Light on resources and very predictable.",
+  "homepage": "https://github.com/nihui/waifu2x-ncnn-vulkan",
+  "license": "MIT",
+  "tags": ["CNN", "Anime", "Art"],
+  "requirements": "Any GPU with Vulkan",
+  "media": ["image", "video"],
+  "input": "image",
+  "batch": true,
+  "install": {
+    "type": "archive",
+    "size": "25 MB",
+    "urls": {
+      "linux": "https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-ubuntu.zip",
+      "windows": "https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-windows.zip",
+      "darwin": "https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-macos.zip"
+    }
+  },
+  "executable": {"windows": "waifu2x-ncnn-vulkan.exe", "*": "waifu2x-ncnn-vulkan"},
+  "args": ["-i", "{input}", "-o", "{output}", "-s", "{scale}", "{modelArgs}", "-f", "png"],
+  "gpuArgs": ["-g", "{gpu}"],
+  "outputExt": ".png",
+  "scales": [2, 4, 8],
+  "defaultScale": 2,
+  "models": [
+    {"id": "cunet", "name": "CUNet · Art", "description": "Best quality for illustrations.", "args": ["-m", "models-cunet", "-n", "1"]},
+    {"id": "upconv-anime", "name": "UpConv · Anime", "description": "Faster, for anime-style art.", "args": ["-m", "models-upconv_7_anime_style_art_rgb", "-n", "1"]},
+    {"id": "upconv-photo", "name": "UpConv · Photo", "description": "Light upscaling for photos.", "args": ["-m", "models-upconv_7_photo", "-n", "1"]}
+  ]
+}

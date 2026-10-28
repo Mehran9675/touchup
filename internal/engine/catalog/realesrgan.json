@@ -1,0 +1,33 @@
+{
+  "id": "realesrgan-ncnn",
+  "name": "Real-ESRGAN",
+  "vendor": "Xintao Wang · Tencent ARC",
+  "description": "The workhorse for real-world photos and video: restores detail while removing blur, noise and compression artifacts. Includes a fast model trained for anime video.",
+  "homepage": "https://github.com/xinntao/Real-ESRGAN",
+  "license": "BSD-3-Clause",
+  "tags": ["GAN", "Photo", "Anime"],
+  "requirements": "Any GPU with Vulkan (NVIDIA, AMD, Intel, Apple)",
+  "media": ["image", "video"],
+  "input": "image",
+  "batch": true,
+  "install": {
+    "type": "archive",
+    "size": "45 MB",
+    "urls": {
+      "linux": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip",
+      "windows": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip",
+      "darwin": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip"
+    }
+  },
+  "executable": {"windows": "realesrgan-ncnn-vulkan.exe", "*": "realesrgan-ncnn-vulkan"},
+  "args": ["-i", "{input}", "-o", "{output}", "-s", "{scale}", "{modelArgs}", "-f", "png"],
+  "gpuArgs": ["-g", "{gpu}"],
+  "outputExt": ".png",
+  "scales": [4],
+  "defaultScale": 4,
+  "models": [
+    {"id": "realesrgan-x4plus", "name": "General · x4plus", "description": "Photos and live-action footage.", "args": ["-n", "realesrgan-x4plus"], "scales": [4]},
+    {"id": "realesrgan-x4plus-anime", "name": "Anime · x4plus", "description": "Illustrations and anime stills.", "args": ["-n", "realesrgan-x4plus-anime"], "scales": [4]},
+    {"id": "realesr-animevideov3", "name": "Anime video · v3", "description": "Small and fast, made for animated video.", "args": ["-n", "realesr-animevideov3"], "scales": [2, 3, 4]}
+  ]
+}

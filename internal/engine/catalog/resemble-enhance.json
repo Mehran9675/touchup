@@ -1,0 +1,20 @@
+{
+  "id": "resemble-enhance",
+  "name": "Resemble Enhance",
+  "vendor": "Resemble AI",
+  "description": "Speech denoising and enhancement in two stages: a denoiser, then a latent flow-matching model that restores bandwidth and clarity.",
+  "homepage": "https://github.com/resemble-ai/resemble-enhance",
+  "license": "MIT",
+  "tags": ["Speech", "Flow matching", "Python"],
+  "requirements": "Python 3.10 · NVIDIA GPU recommended",
+  "media": ["audio"],
+  "input": "audio",
+  "install": {"type": "pip", "packages": ["resemble-enhance"], "size": "≈4 GB with PyTorch"},
+  "executable": {"*": "resemble-enhance"},
+  "args": ["{inputDir}", "{outputDir}", "{modelArgs}"],
+  "outputExt": ".wav",
+  "models": [
+    {"id": "enhance", "name": "Enhance", "description": "Denoise and restore.", "args": ["--nfe", "64"]},
+    {"id": "denoise", "name": "Denoise only", "description": "Removes noise, keeps the rest.", "args": ["--denoise_only"]}
+  ]
+}

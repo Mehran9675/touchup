@@ -1,0 +1,16 @@
+{
+  "id": "deepfilternet",
+  "name": "DeepFilterNet",
+  "vendor": "Hendrik Schröter",
+  "description": "Real-time noise suppression for full-band 48 kHz speech. A clean first pass before upscaling noisy recordings.",
+  "homepage": "https://github.com/Rikorose/DeepFilterNet",
+  "license": "MIT / Apache-2.0",
+  "tags": ["Speech", "Denoise", "Python"],
+  "requirements": "Python 3.8+ · runs well on CPU",
+  "media": ["audio"],
+  "input": "audio",
+  "install": {"type": "pip", "packages": ["torch", "torchaudio", "deepfilternet"], "size": "≈2 GB with PyTorch"},
+  "executable": {"*": "deepFilter"},
+  "args": ["{input}", "-o", "{outputDir}"],
+  "outputExt": ".wav"
+}
