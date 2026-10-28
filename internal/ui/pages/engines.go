@@ -31,6 +31,13 @@ type Engines struct {
 	modelsDialog *dialog.Dialog
 	modelsScroll *scroll.Scroll
 	modelsClose  *giode.ButtonElement
+
+	// errorTitle and errorText fill the error details dialog.
+	errorTitle, errorText string
+	errorOn               bool
+	errorDialog           *dialog.Dialog
+	errorClose            *giode.ButtonElement
+	errorCopy             giode.Element
 }
 
 // NewEngines creates the page.
@@ -56,6 +63,11 @@ func NewEngines(s *store.Store) *Engines {
 	e.imp = theme.SecondaryButton("Import manifest", "file-code").OnClick(s.ImportManifest)
 	e.modelsScroll = giode.Scroll(e.modelList, giode.Styles{ScrollBar: giode.ScrollBar{Width: 4, ThumbColor: theme.Border}}).FitContent(true)
 	e.modelsClose = theme.SecondaryButton("Done", "").OnClick(func() { e.modelsOn = false })
+	e.errorClose = theme.SecondaryButton("Close", "").OnClick(func() { e.errorOn = false })
+	e.errorCopy = giode.CopyButton(func() string { return e.errorText })
+	e.errorDialog = giode.Dialog(&e.errorOn, e.errorView, giode.Styles{
+		Background: theme.Surface, BorderRadius: 20, Padding: giode.UniformInset(24),
+	})
 	e.modelsDialog = giode.Dialog(&e.modelsOn, e.modelsView, giode.Styles{
 		Background: theme.Surface, BorderRadius: 20, Padding: giode.UniformInset(24),
 	})
@@ -80,11 +92,38 @@ func (e *Engines) View() giode.Element {
 // Overlays are the page's dialogs, laid out last in the window's root so
 // they cover everything.
 func (e *Engines) Overlays() []giode.Element {
-	return []giode.Element{e.dialog, e.modelsDialog}
+	return []giode.Element{e.dialog, e.modelsDialog, e.errorDialog}
 }
 
 // DialogOpen reports whether one of the page's dialogs is showing.
-func (e *Engines) DialogOpen() bool { return e.formOn || e.modelsOn }
+func (e *Engines) DialogOpen() bool { return e.formOn || e.modelsOn || e.errorOn }
+
+// showError opens the error details dialog.
+func (e *Engines) showError(title, text string) {
+	e.errorTitle, e.errorText, e.errorOn = title, text, true
+}
+
+// errorView is the error details dialog: the whole message, selectable,
+// with a copy button, for errors too long for a card.
+func (e *Engines) errorView() giode.Element {
+	text := e.errorText
+	return giode.Stack(giode.Styles{Width: 620, Gap: 16},
+		giode.Row(giode.Styles{Gap: 12, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
+			components.IconBubble("triangle-alert", theme.Danger, 40),
+			giode.Stack(giode.Styles{Gap: 2, FlexGrow: 1},
+				giode.Text(e.errorTitle, theme.Heading().With(giode.Styles{FontSize: 18})),
+				giode.Text("The last lines the installer printed:", theme.Secondary()),
+			),
+		),
+		giode.Box(giode.Styles{
+			Width: -1, MaxHeight: 360, Background: theme.Sunken(), BorderRadius: 12, Padding: giode.UniformInset(14),
+		}, giode.Text(text, theme.Code().With(giode.Styles{Color: theme.Text, MaxLines: 20})).Selectable("engine-error")),
+		giode.Row(giode.Styles{Width: -1, Gap: 8, Justify: giode.JustifyEnd},
+			e.errorCopy,
+			e.errorClose,
+		),
+	)
+}
 
 func (e *Engines) grid() giode.Element {
 	s := e.s
@@ -152,11 +191,16 @@ func (e *Engines) footer(m *engine.Manifest) giode.Element {
 		return components.InstallFooter(in.Status.Stage, in.Status.Frac,
 			action("engine-cancel", "Cancel", "x", theme.GhostButton, func() { s.CancelInstall(m.ID) }))
 	case in != nil && in.Err != "":
+		// The message is usually too long for a card: the card says what
+		// happened and Details shows the rest.
 		return row(
-			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(in.Err, theme.Caption().With(giode.Styles{
-				Color: theme.Danger, MaxLines: 2, TextOverflow: giode.TextOverflowEllipsis,
+			theme.Icon("triangle-alert", 16, theme.Danger),
+			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text("Install failed", theme.Label().With(giode.Styles{
+				FontSize: 12.5, Color: theme.Danger,
 			}))),
-			action("engine-dismiss", "Dismiss", "", theme.GhostButton, func() { s.DismissInstallError(m.ID) }),
+			action("engine-details", "Details", "", theme.GhostButton, func() {
+				e.showError("Couldn't install "+m.Name, in.Err)
+			}),
 			action("engine-retry", "Try again", "refresh-cw", theme.SecondaryButton, func() { s.InstallEngine(m) }),
 		)
 	case s.Installed(m.ID):

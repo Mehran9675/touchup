@@ -143,9 +143,12 @@ func (p *Settings) content() giode.Element {
 
 	tool := func(name, label, found, missing string) giode.Element {
 		var badge giode.Element
-		if found != "" {
+		switch {
+		case found != "":
 			badge = components.StatusBadge("Found", theme.Success)
-		} else {
+		case name == "python":
+			badge = components.StatusBadge("Automatic", theme.Info)
+		default:
 			badge = components.StatusBadge("Missing", theme.Warning)
 		}
 		desc := missing
@@ -180,7 +183,7 @@ func (p *Settings) content() giode.Element {
 			tool("ffmpeg", "FFmpeg", s.Tools.FFmpeg, "Needed to read and write video and audio. Install it from ffmpeg.org."),
 			tool("ffprobe", "FFprobe", s.Tools.FFprobe, "Comes with FFmpeg; reads file details."),
 			tool("ffplay", "FFplay", s.Tools.FFplay, "Comes with most FFmpeg builds; plays audio previews."),
-			tool("python", "Python", s.Python, "Needed by Python engines such as AudioSR. Install Python 3.10."),
+			tool("python", "Python", s.Python, s.PythonNote),
 		),
 		section("Storage",
 			components.SettingRow("Engines folder", paths.Engines(), p.showData),

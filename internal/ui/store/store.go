@@ -29,7 +29,9 @@ type Store struct {
 	Registry *engine.Registry
 	Settings settings.Settings
 	Tools    media.Tools
-	Python   string // the interpreter found for Python engines
+	Python   string // the Python engines use, once there is one
+	// PythonNote says where Python comes from, for Settings.
+	PythonNote string
 
 	Page    Page
 	Session *Session
@@ -117,7 +119,7 @@ func (s *Store) refreshInstalled() {
 func (s *Store) locateTools() {
 	st := s.Settings
 	s.Tools = media.Locate(st.FFmpeg, st.FFprobe, st.FFplay)
-	s.Python = engine.FindPython(st.Python)
+	s.Python, s.PythonNote = engine.PythonStatus(st.Python)
 }
 
 func (s *Store) id() int {

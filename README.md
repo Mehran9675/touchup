@@ -64,8 +64,11 @@ Engines are installed per user into `~/.local/share/TouchUp/engines` (Linux),
 - [FFmpeg](https://ffmpeg.org) with `ffprobe` (and `ffplay` to listen to audio previews), on
   `PATH`, next to the TouchUp executable, or set in Settings.
 - A GPU with Vulkan for the ncnn engines.
-- Python 3.10 for the Python engines. An NVIDIA GPU is strongly recommended for diffusion
-  models.
+- Nothing for the Python engines: TouchUp downloads its own Python 3.12 (a
+  [standalone build](https://github.com/astral-sh/python-build-standalone), checksum-verified)
+  the first time one is installed, so a missing, too new or Store-shortcut system Python doesn't
+  matter. A Python set in Settings is used instead when it's 3.9–3.13 with venv. An NVIDIA GPU
+  is strongly recommended for diffusion models.
 
 ## Build
 

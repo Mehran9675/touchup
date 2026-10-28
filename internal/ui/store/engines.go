@@ -45,6 +45,7 @@ func (s *Store) InstallEngine(m *engine.Manifest) {
 				delete(s.Installs, m.ID)
 				s.Toasts.Show(giode.ToastSuccess, m.Name+" is installed")
 			}
+			s.locateTools() // Python may have been downloaded
 			s.refreshInstalled()
 		})
 	}()
