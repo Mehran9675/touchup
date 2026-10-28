@@ -14,6 +14,9 @@ before/after comparisons. Nothing is uploaded.
 
 - **Any engine.** A built-in catalog of open-source engines installs with one click, and you can
   add any other command-line upscaler from a form or a JSON manifest.
+- **Models installed one by one.** Engines with large weights list their models on the engine
+  card; download only the ones you want, with checksums verified. The studio offers the
+  installed ones.
 - **Video preview on a single frame.** Scrub the timeline to any moment and upscale just that
   frame. A split view with zoom and pan compares the original with the result before you
   commit to the whole video.
@@ -31,16 +34,26 @@ before/after comparisons. Nothing is uploaded.
 
 ## Built-in engines
 
-| Engine | Media | Install |
-| --- | --- | --- |
-| [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) (x4plus, anime, anime video v3) | Image, video | Download, Vulkan GPU |
-| [Real-CUGAN](https://github.com/nihui/realcugan-ncnn-vulkan) | Image, video | Download, Vulkan GPU |
-| [waifu2x](https://github.com/nihui/waifu2x-ncnn-vulkan) | Image, video | Download, Vulkan GPU |
-| [RealSR](https://github.com/nihui/realsr-ncnn-vulkan) | Image, video | Download, Vulkan GPU |
-| [AudioSR](https://github.com/haoheliu/versatile_audio_super_resolution) | Audio | Python environment |
-| [VoiceFixer](https://github.com/haoheliu/voicefixer) | Audio | Python environment |
-| [Resemble Enhance](https://github.com/resemble-ai/resemble-enhance) | Audio | Python environment |
-| [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) | Audio | Python environment |
+The strongest engines are listed first.
+
+| Engine | Media | What it's best at | Install |
+| --- | --- | --- | --- |
+| [SeedVR2](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler) (3B, 7B, 7B Sharp; FP8 and GGUF) | Video, image | One-step diffusion restoration with real, steady texture: the strongest open video upscaler | Python, NVIDIA GPU (8 GB+) |
+| PyTorch SR, through [spandrel](https://github.com/chaiNNer-org/spandrel) | Image, video | 13 community models: DRCT-L, DAT, ATD, DAT2 web photos, RealPLKSR (fast), SwinIR-L, Real-ESRGAN, anime and AI-art models | Python, NVIDIA GPU recommended |
+| [Apollo](https://github.com/JusperLee/Apollo) | Audio | Restoring music damaged by MP3 and streaming compression | Python |
+| [AudioSR](https://github.com/haoheliu/versatile_audio_super_resolution) | Audio | Diffusion bandwidth extension to 48 kHz for music, speech and effects | Python |
+| [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) (x4plus, anime, anime video v3) | Image, video | Fast all-rounder on any GPU | Download, Vulkan GPU |
+| [Real-CUGAN](https://github.com/nihui/realcugan-ncnn-vulkan) | Image, video | Anime with adjustable denoising | Download, Vulkan GPU |
+| [waifu2x](https://github.com/nihui/waifu2x-ncnn-vulkan) | Image, video | Drawings and anime art | Download, Vulkan GPU |
+| [RealSR](https://github.com/nihui/realsr-ncnn-vulkan) | Image, video | Natural 4x photos | Download, Vulkan GPU |
+| [VoiceFixer](https://github.com/haoheliu/voicefixer) | Audio | Badly degraded speech | Python |
+| [Resemble Enhance](https://github.com/resemble-ai/resemble-enhance) | Audio | Speech denoising and enhancement | Python |
+| [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) | Audio | Real-time speech denoising | Python |
+
+PyTorch SR runs every model through `spandrel_runner.py`, a script TouchUp ships into the
+engine's folder. It tiles large images to fit in GPU memory, keeps transparency, scales 4x models
+down to 2x or 3x when asked, and by default restores the original's colors where a model drifts
+on saturated hues (`--no-color-fix` turns that off in a custom manifest).
 
 Engines are installed per user into `~/.local/share/TouchUp/engines` (Linux),
 `~/Library/Application Support/TouchUp/engines` (macOS) or `%LOCALAPPDATA%\TouchUp\engines`
@@ -113,9 +126,13 @@ manifest and use **Import manifest**. This one is the built-in Real-CUGAN, sligh
 | `media` | What the engine upscales: `image`, `video`, `audio`. |
 | `input` | What the program reads. An `image` engine listed for `video` runs on every frame; a `video` engine gets the whole file, and TouchUp copies the original audio back in. |
 | `batch` | The program accepts folders for `{input}` and `{output}`, so video frames go through in one run. |
-| `install.type` | `archive` (a `.zip` or `.tar.gz` per platform; a single top folder is unwrapped), `pip` (`packages` installed into a private virtual environment) or `none` (a program already on the computer). |
+| `install.type` | `archive` (a `.zip` or `.tar.gz` per platform; a single top folder is unwrapped), `pip` (a private virtual environment) or `none` (a program already on the computer). |
+| `install.packages`, `install.pip` | For `pip`: requirement specifiers, and further install steps in order, each with `args` and an optional `indexURL` by OS (for PyTorch's CUDA builds on Windows). `{engineDir}` works in `args`, so a step can be `["-r", "{engineDir}/src/requirements.txt"]`. |
+| `install.source` | For `pip`: a `url` of an archive of the engine's code and the `dir` to unpack it into, before the packages install. |
 | `executable` | The program by OS (`linux`, `windows`, `darwin`, or `*`): a path, or a name looked up in the install folder, the Python environment, or `PATH`. |
-| `args` | Arguments with placeholders: `{input}`, `{output}`, `{inputDir}`, `{outputDir}`, `{scale}`, `{gpu}`, `{engineDir}`, `{model}`. An argument that is exactly `{modelArgs}` becomes the selected model's `args`. |
+| `args` | Arguments with placeholders: `{input}`, `{output}`, `{inputDir}`, `{outputDir}`, `{scale}`, `{gpu}`, `{engineDir}`, `{model}`, `{modelDir}`, `{modelPath}` (the model's first file), `{inWidth}`, `{inHeight}`, `{outWidth}`, `{outHeight}` and `{outShort}` (for engines that take a target resolution). An argument that is exactly `{modelArgs}` becomes the selected model's `args`. A Python engine's `executable` can be `python`, its environment's interpreter. |
+| `models[].files` | Weights to download into `{modelDir}`: `url`, `name` (shared between models when equal) and an optional `sha256`. Each model then has its own download on the engine card; `size` and `recommended` describe it. |
+| `inputRate`, `imageOutputExt` | The sample rate an audio engine needs, and what a video engine writes when given an image. |
 | `outputExt` | The extension the program writes. When it picks its own file name, TouchUp takes the newest such file in `{outputDir}`. |
 | `progress` | Optional regular expression whose first group is a percentage in the program's output (default: `N%`). |
 

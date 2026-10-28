@@ -14,19 +14,22 @@ import (
 
 // EngineCardProps is what an EngineCard shows.
 type EngineCardProps struct {
-	Engine    *engine.Manifest
-	Width     int // dp
-	Installed bool
-	// Installing is true while an install runs; Stage, Frac and Line
-	// describe it. Err is a failed install's message.
-	Installing bool
-	Stage      string
-	Frac       float64
-	Line       string
-	Err        string
-	// Actions are the card's buttons, built by the page.
-	Actions []giode.Element
+	Engine *engine.Manifest
+	// Width is the card's width in dp. Height is its height in dp, or 0
+	// for its natural height; with a height the footer sits at the bottom.
+	Width, Height int
+	Installed     bool
+	// Models is the card's model section, built by the page; nil when
+	// the engine has no models to choose from.
+	Models giode.Element
+	// Footer is the bottom row: the install progress, an error, or the
+	// card's buttons. It always takes the same height, so a card doesn't
+	// grow while it installs.
+	Footer giode.Element
 }
+
+// footerHeight is the height of an engine card's footer in dp.
+const footerHeight = 44
 
 // EngineCard presents an engine in the library.
 func EngineCard(p EngineCardProps) giode.Element {
@@ -62,9 +65,6 @@ func EngineCard(p EngineCardProps) giode.Element {
 	if m.Install.Size != "" {
 		detail = append(detail, m.Install.Size)
 	}
-	if n := len(m.Models); n > 0 {
-		detail = append(detail, fmt.Sprintf("%d model%s", n, plural(n)))
-	}
 	if len(m.Scales) > 0 {
 		s := make([]string, len(m.Scales))
 		for i, v := range m.Scales {
@@ -92,26 +92,38 @@ func EngineCard(p EngineCardProps) giode.Element {
 			giode.Text(m.Description, theme.Secondary().With(giode.Styles{MaxLines: 3, TextOverflow: giode.TextOverflowEllipsis}))),
 		giode.Row(giode.Styles{Gap: 6}, tags...),
 		giode.Stack(giode.Styles{Gap: 6}, facts...),
+	}
+	if p.Models != nil {
+		children = append(children, p.Models)
+	}
+	if p.Height > 0 {
+		// Push the footer to the bottom of a card stretched to its row.
+		children = append(children, giode.Box(giode.Styles{FlexGrow: 1}))
+	}
+	children = append(children,
 		giode.Divider(giode.Styles{Color: theme.Faint()}),
-	}
+		giode.Box(giode.Styles{Width: -1, Height: footerHeight, Align: giode.AlignCenter}, p.Footer),
+	)
+	return Card(giode.Styles{
+		Width: properties.Width(p.Width), Height: properties.Height(p.Height), Gap: 14,
+		Padding: giode.Inset{Top: 20, Right: 20, Bottom: 12, Left: 20},
+	}, children...)
+}
 
-	switch {
-	case p.Installing:
-		children = append(children, giode.Stack(giode.Styles{Gap: 8, Width: -1},
-			giode.Row(giode.Styles{Width: -1, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
-				giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(p.Stage+"…", theme.Label())),
-				giode.Text(percent(p.Frac), theme.Caption()),
+// InstallFooter is an engine card's footer while it installs: the stage,
+// a progress bar and a cancel button, in the footer's fixed height.
+func InstallFooter(stage string, frac float64, cancel giode.Element) giode.Element {
+	return giode.Row(giode.Styles{Width: -1, Align: giode.AlignCenter, Gap: 12, Wrap: giode.WrapNoWrap},
+		giode.Stack(giode.Styles{Gap: 7, FlexGrow: 1},
+			giode.Row(giode.Styles{Width: -1, Wrap: giode.WrapNoWrap},
+				giode.Box(giode.Styles{FlexGrow: 1},
+					giode.Text(stage+"…", theme.Label().With(giode.Styles{FontSize: 12.5, TextOverflow: giode.TextOverflowEllipsis}))),
+				giode.Text(percent(frac), theme.Caption()),
 			),
-			ProgressBar(p.Frac, 6),
-			outputLine(p.Line),
-		))
-	case p.Err != "":
-		children = append(children, giode.Text(p.Err, theme.Code().With(giode.Styles{Color: theme.Danger, MaxLines: 5, TextOverflow: giode.TextOverflowEllipsis})))
-	}
-	if len(p.Actions) > 0 {
-		children = append(children, giode.Row(giode.Styles{Width: -1, Gap: 8, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap}, p.Actions...))
-	}
-	return Card(giode.Styles{Width: properties.Width(p.Width), Gap: 14}, children...)
+			ProgressBar(frac, 5),
+		),
+		cancel,
+	)
 }
 
 func fact(icon, text string) giode.Element {

@@ -54,8 +54,8 @@ func (s *Store) Enqueue() {
 		return
 	}
 	opts, sel := s.options(sess.Kind)
-	if sel.Engine == nil {
-		s.fail(errors.New("install an engine for " + sess.Kind.String() + " first"))
+	if err := sel.problem(sess.Kind); err != nil {
+		s.fail(err)
 		return
 	}
 	var ext string
@@ -207,6 +207,11 @@ func (s *Store) Shutdown() {
 		}
 	}
 	for _, in := range s.Installs {
+		if in.Running() {
+			in.cancel()
+		}
+	}
+	for _, in := range s.ModelInstalls {
 		if in.Running() {
 			in.cancel()
 		}
