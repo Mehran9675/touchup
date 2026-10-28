@@ -115,3 +115,54 @@ func (s *Store) ImportManifest() {
 		s.post(func() { s.fail(s.AddCustomEngine(m)) })
 	}()
 }
+
+// InstallModel downloads a model in the background.
+func (s *Store) InstallModel(m *engine.Manifest, mdl *engine.Model) {
+	key := ModelKey(m, mdl)
+	if s.ModelInstalls[key].Running() {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	in := &Install{cancel: cancel, Status: engine.Status{Stage: "Starting", Frac: -1}}
+	s.ModelInstalls[key] = in
+	go func() {
+		err := engine.InstallModel(ctx, m, mdl, func(st engine.Status) {
+			s.post(func() { in.Status = st })
+		})
+		s.post(func() {
+			in.cancel = nil
+			switch {
+			case errors.Is(err, context.Canceled):
+				delete(s.ModelInstalls, key)
+			case err != nil:
+				in.Err = err.Error()
+				s.Toasts.Show(giode.ToastError, "Couldn't download "+mdl.Name)
+			default:
+				delete(s.ModelInstalls, key)
+				s.Toasts.Show(giode.ToastSuccess, mdl.Name+" is ready to use")
+			}
+			s.refreshInstalled()
+		})
+	}()
+}
+
+// CancelModelInstall stops a model download.
+func (s *Store) CancelModelInstall(m *engine.Manifest, mdl *engine.Model) {
+	if in := s.ModelInstalls[ModelKey(m, mdl)]; in.Running() {
+		in.cancel()
+	}
+}
+
+// DismissModelError forgets a failed model download.
+func (s *Store) DismissModelError(m *engine.Manifest, mdl *engine.Model) {
+	delete(s.ModelInstalls, ModelKey(m, mdl))
+}
+
+// UninstallModel deletes a model's files.
+func (s *Store) UninstallModel(m *engine.Manifest, mdl *engine.Model) {
+	if err := engine.UninstallModel(m, mdl); err != nil {
+		s.fail(err)
+	}
+	s.refreshInstalled()
+	s.Toasts.Show(giode.ToastInfo, mdl.Name+" was removed")
+}

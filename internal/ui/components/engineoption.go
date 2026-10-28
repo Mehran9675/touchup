@@ -8,8 +8,9 @@ import (
 )
 
 // EngineOption is a radio row choosing an engine in the inspector. An
-// engine that isn't installed shows a download hint instead of a radio.
-func EngineOption(m *engine.Manifest, selected, installed bool, onClick func()) giode.Element {
+// engine that isn't installed shows a download hint instead of a radio;
+// a note, when set, replaces the vendor line.
+func EngineOption(m *engine.Manifest, selected, installed bool, note string, onClick func()) giode.Element {
 	return Clickable("engine-option", m.ID, m.Name, onClick, func(s giode.PressState) giode.Element {
 		bg, border := giode.Color("transparent"), theme.Faint()
 		switch {
@@ -31,8 +32,11 @@ func EngineOption(m *engine.Manifest, selected, installed bool, onClick func()) 
 			mark = giode.Box(giode.Styles{Width: 18, Height: 18, BorderRadius: 9, BorderColor: theme.Border, BorderWidth: 2})
 		}
 		sub := m.Vendor
-		if !installed {
+		switch {
+		case !installed:
 			sub = "Not installed · open Engines"
+		case note != "":
+			sub = note
 		}
 		nameColor := giode.Color(theme.Text)
 		if !installed {

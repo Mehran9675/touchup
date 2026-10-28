@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -14,8 +15,25 @@ import (
 // resolved against what's installed.
 type Selection struct {
 	Engine *engine.Manifest // nil when no engine for the kind is installed
-	Model  *engine.Model
+	Model  *engine.Model    // nil when the engine has no installed model
 	Scale  int
+}
+
+// Ready reports whether the selection can run: an installed engine, and
+// an installed model when the engine has models.
+func (sel Selection) Ready() bool {
+	return sel.Engine != nil && (sel.Model != nil || len(sel.Engine.Models) == 0)
+}
+
+// problem explains why the selection can't run, or returns nil.
+func (sel Selection) problem(kind media.Kind) error {
+	switch {
+	case sel.Engine == nil:
+		return errors.New("install an engine for " + kind.String() + " first")
+	case !sel.Ready():
+		return errors.New("install a model for " + sel.Engine.Name + " on the Engines page first")
+	}
+	return nil
 }
 
 // Label describes the selection: "Real-ESRGAN · General · 4x".
@@ -67,7 +85,7 @@ func (s *Store) Selected(kind media.Kind) Selection {
 		}
 		c = settings.Choice{Engine: m.ID}
 	}
-	model := m.Model(c.Model)
+	model := s.installedModel(m, c.Model)
 	scale := c.Scale
 	if scales := m.ScalesFor(model); !slices.Contains(scales, scale) {
 		scale = m.PreferredScale(model)
@@ -76,6 +94,31 @@ func (s *Store) Selected(kind media.Kind) Selection {
 		scale = 1
 	}
 	return Selection{Engine: m, Model: model, Scale: scale}
+}
+
+// installedModel returns the model with id when it's downloaded,
+// otherwise the first downloaded one, recommended ones first, or nil.
+func (s *Store) installedModel(m *engine.Manifest, id string) *engine.Model {
+	var first, recommended *engine.Model
+	for i := range m.Models {
+		mdl := &m.Models[i]
+		if !s.ModelInstalled(m, mdl) {
+			continue
+		}
+		if mdl.ID == id {
+			return mdl
+		}
+		if first == nil {
+			first = mdl
+		}
+		if recommended == nil && mdl.Recommended {
+			recommended = mdl
+		}
+	}
+	if recommended != nil {
+		return recommended
+	}
+	return first
 }
 
 // Choose remembers an engine, model and scale for kind. Empty values

@@ -62,7 +62,7 @@ func frameVideo(ctx context.Context, o Options, ws *workspace, in, out string, i
 				}
 			}
 		}()
-		j := o.job(ws.in, ws.out, ws.in, ws.out, report, stage, from, to)
+		j := sized(o.job(ws.in, ws.out, ws.in, ws.out, report, stage, from, to), info.Width, info.Height)
 		j.Progress = nil // per-frame percentages would jump around
 		_, err := o.Engine.Run(ctx, j)
 		close(stop)
@@ -82,7 +82,7 @@ func frameVideo(ctx context.Context, o Options, ws *workspace, in, out string, i
 			}
 			name := filepath.Base(frame)
 			target := filepath.Join(ws.out, name[:len(name)-len(filepath.Ext(name))]+o.Engine.OutputExt)
-			j := o.job(frame, target, ws.in, frameDir, report, stage, from, to)
+			j := sized(o.job(frame, target, ws.in, frameDir, report, stage, from, to), info.Width, info.Height)
 			j.Progress = nil
 			result, err := o.Engine.Run(ctx, j)
 			if err != nil {
@@ -114,8 +114,8 @@ func wholeVideo(ctx context.Context, o Options, ws *workspace, in, out string, i
 			return err
 		}
 	}
-	result, err := o.Engine.Run(ctx, o.job(src, filepath.Join(ws.out, "source"+o.Engine.OutputExt),
-		ws.in, ws.out, report, "Upscaling", 0.02, 0.92))
+	result, err := o.Engine.Run(ctx, sized(o.job(src, filepath.Join(ws.out, "source"+o.Engine.OutputExt),
+		ws.in, ws.out, report, "Upscaling", 0.02, 0.92), info.Width, info.Height))
 	if err != nil {
 		return err
 	}

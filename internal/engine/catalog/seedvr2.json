@@ -1,0 +1,176 @@
+{
+  "id": "seedvr2",
+  "name": "SeedVR2",
+  "featured": true,
+  "vendor": "ByteDance Seed · numz",
+  "description": "One-step diffusion transformer for video and image restoration. Rebuilds real texture with steady detail from frame to frame. The strongest open video upscaler.",
+  "homepage": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler",
+  "license": "Apache-2.0",
+  "tags": [
+    "Diffusion",
+    "Transformer",
+    "PyTorch"
+  ],
+  "requirements": "Python 3.10–3.13 · NVIDIA GPU with 8 GB+ (16 GB+ for 7B) · FFmpeg",
+  "media": [
+    "video",
+    "image"
+  ],
+  "input": "video",
+  "imageOutputExt": ".png",
+  "install": {
+    "type": "pip",
+    "size": "≈ 4 GB with PyTorch, plus models",
+    "source": {
+      "url": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler/archive/refs/tags/v2.5.23.zip",
+      "dir": "src"
+    },
+    "pip": [
+      {
+        "args": [
+          "torch",
+          "torchvision"
+        ],
+        "indexURL": {
+          "windows": "https://download.pytorch.org/whl/cu128"
+        }
+      },
+      {
+        "args": [
+          "-r",
+          "{engineDir}/src/requirements.txt"
+        ]
+      }
+    ]
+  },
+  "executable": {
+    "*": "python"
+  },
+  "args": [
+    "{engineDir}/src/inference_cli.py",
+    "{input}",
+    "--output",
+    "{output}",
+    "--model_dir",
+    "{modelDir}",
+    "{modelArgs}",
+    "--resolution",
+    "{outShort}",
+    "--batch_size",
+    "21",
+    "--temporal_overlap",
+    "3",
+    "--color_correction",
+    "lab",
+    "--video_backend",
+    "ffmpeg",
+    "--vae_encode_tiled",
+    "--vae_decode_tiled"
+  ],
+  "gpuArgs": [
+    "--cuda_device",
+    "{gpu}"
+  ],
+  "outputExt": ".mp4",
+  "scales": [
+    2,
+    3,
+    4
+  ],
+  "defaultScale": 2,
+  "models": [
+    {
+      "id": "3b-fp8",
+      "name": "3B · FP8",
+      "description": "The default: fast and light, for GPUs with 8–12 GB.",
+      "size": "≈ 3.9 GB",
+      "args": [
+        "--dit_model",
+        "seedvr2_ema_3b_fp8_e4m3fn.safetensors"
+      ],
+      "files": [
+        {
+          "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+          "name": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+          "sha256": "3bf1e43ebedd570e7e7a0b1b60d6a02e105978f505c8128a241cde99a8240cff"
+        },
+        {
+          "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors",
+          "name": "ema_vae_fp16.safetensors",
+          "sha256": "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
+        }
+      ],
+      "recommended": true
+    },
+    {
+      "id": "3b-q4",
+      "name": "3B · GGUF Q4 · low memory",
+      "description": "For 6–8 GB GPUs: smaller weights, and the models wait in system memory between steps.",
+      "size": "≈ 2.4 GB",
+      "args": [
+        "--dit_model",
+        "seedvr2_ema_3b-Q4_K_M.gguf",
+        "--dit_offload_device",
+        "cpu",
+        "--vae_offload_device",
+        "cpu"
+      ],
+      "files": [
+        {
+          "url": "https://huggingface.co/AInVFX/SeedVR2_comfyUI/resolve/main/seedvr2_ema_3b-Q4_K_M.gguf",
+          "name": "seedvr2_ema_3b-Q4_K_M.gguf",
+          "sha256": "e665e3909de1a8c88a69c609bca9d43ff5a134647face2ce4497640cc3597f0e"
+        },
+        {
+          "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors",
+          "name": "ema_vae_fp16.safetensors",
+          "sha256": "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
+        }
+      ]
+    },
+    {
+      "id": "7b-fp8",
+      "name": "7B · FP8 · best quality",
+      "description": "The large model: the most convincing texture. Needs 16 GB or more.",
+      "size": "≈ 8.6 GB",
+      "args": [
+        "--dit_model",
+        "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors"
+      ],
+      "files": [
+        {
+          "url": "https://huggingface.co/AInVFX/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+          "name": "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+          "sha256": "3d68b5ec0b295ae28092e355c8cad870edd00b817b26587d0cb8f9dd2df19bb2"
+        },
+        {
+          "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors",
+          "name": "ema_vae_fp16.safetensors",
+          "sha256": "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
+        }
+      ]
+    },
+    {
+      "id": "7b-sharp-fp8",
+      "name": "7B Sharp · FP8",
+      "description": "The large model tuned for crisper detail.",
+      "size": "≈ 8.6 GB",
+      "args": [
+        "--dit_model",
+        "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors"
+      ],
+      "files": [
+        {
+          "url": "https://huggingface.co/AInVFX/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+          "name": "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+          "sha256": "0d2c5b8be0fda94351149c5115da26aef4f4932a7a2a928c6f184dda9186e0be"
+        },
+        {
+          "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors",
+          "name": "ema_vae_fp16.safetensors",
+          "sha256": "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
+        }
+      ]
+    }
+  ]
+}

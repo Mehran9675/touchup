@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -33,6 +34,14 @@ func installPip(ctx context.Context, m *Manifest, python string, report Report) 
 	if python == "" {
 		return errors.New("Python was not found: install Python 3 or set its path in Settings")
 	}
+	if src := m.Install.Source; src != nil {
+		if err := installSource(ctx, m, src, report); err != nil {
+			return err
+		}
+	}
+	if err := installScripts(m); err != nil {
+		return err
+	}
 	venv := filepath.Join(m.Dir(), "venv")
 	report(Status{Stage: "Creating Python environment", Frac: -1})
 	if err := runLogged(ctx, report, "Creating Python environment", python, "-m", "venv", venv); err != nil {
@@ -42,12 +51,47 @@ func installPip(ctx context.Context, m *Manifest, python string, report Report) 
 	if runtime.GOOS == "windows" {
 		vpy += ".exe"
 	}
-	report(Status{Stage: "Updating pip", Frac: -1})
 	if err := runLogged(ctx, report, "Updating pip", vpy, "-m", "pip", "install", "--upgrade", "pip"); err != nil {
 		return err
 	}
-	args := append([]string{"-m", "pip", "install", "--progress-bar", "off"}, m.Install.Packages...)
-	return runLogged(ctx, report, "Installing packages", vpy, args...)
+	steps := m.Install.Pip
+	if len(m.Install.Packages) > 0 {
+		steps = append([]PipStep{{Args: m.Install.Packages}}, steps...)
+	}
+	for i, step := range steps {
+		stage := "Installing packages"
+		if len(steps) > 1 {
+			stage = fmt.Sprintf("Installing packages (%d of %d)", i+1, len(steps))
+		}
+		args := []string{"-m", "pip", "install", "--progress-bar", "off"}
+		if index := pick(step.IndexURL); index != "" {
+			args = append(args, "--index-url", index)
+		}
+		for _, a := range step.Args {
+			args = append(args, strings.ReplaceAll(a, "{engineDir}", m.Dir()))
+		}
+		if err := runLogged(ctx, report, stage, vpy, args...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// installSource downloads and unpacks the engine's code.
+func installSource(ctx context.Context, m *Manifest, src *Source, report Report) error {
+	tmp, err := os.CreateTemp("", "touchup-source-*"+archiveExt(src.URL))
+	if err != nil {
+		return err
+	}
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+	if err := download(ctx, src.URL, tmp.Name(), func(frac float64) {
+		report(Status{Stage: "Downloading the code", Frac: frac})
+	}); err != nil {
+		return err
+	}
+	report(Status{Stage: "Unpacking", Frac: -1})
+	return extract(tmp.Name(), filepath.Join(m.Dir(), filepath.FromSlash(src.Dir)))
 }
 
 // runLogged runs a command, passing each output line to report, and

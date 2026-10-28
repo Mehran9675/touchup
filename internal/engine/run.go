@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,14 @@ type Job struct {
 	Input, Output string
 	// InputDir and OutputDir are the folders holding Input and Output.
 	InputDir, OutputDir string
+	// InWidth and InHeight are the input's size in pixels, for engines
+	// that take a target resolution instead of a scale.
+	InWidth, InHeight int
+	// OutputExt overrides the extension of the file the engine writes.
+	OutputExt string
+	// PathDirs are put in front of PATH for the engine, so engines that
+	// call FFmpeg themselves find the one TouchUp uses.
+	PathDirs []string
 
 	// Progress receives the engine's own percentage, when it prints one.
 	Progress func(frac float64)
@@ -44,10 +53,17 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	if exe == "" {
 		return "", fmt.Errorf("%s is not installed", m.Name)
 	}
+	if j.Model != nil && !m.ModelInstalled(j.Model) {
+		return "", fmt.Errorf("the %s model of %s is not installed", j.Model.Name, m.Name)
+	}
 	args := m.Command(j)
 	cmd := proc.Command(ctx, exe, args...)
 	cmd.Dir = m.workingDir(exe)
 	cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1", "PYTHONIOENCODING=utf-8")
+	if len(j.PathDirs) > 0 {
+		dirs := append(slices.Clone(j.PathDirs), os.Getenv("PATH"))
+		cmd.Env = append(cmd.Env, "PATH="+strings.Join(dirs, string(os.PathListSeparator)))
+	}
 	pr, pw := io.Pipe()
 	cmd.Stdout, cmd.Stderr = pw, pw
 
@@ -92,10 +108,14 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	if _, err := os.Stat(j.Output); err == nil {
 		return j.Output, nil
 	}
-	if found := newestOutput(j.OutputDir, m.OutputExt, started); found != "" {
+	ext := m.OutputExt
+	if j.OutputExt != "" {
+		ext = j.OutputExt
+	}
+	if found := newestOutput(j.OutputDir, ext, started); found != "" {
 		return found, nil
 	}
-	return "", fmt.Errorf("%s finished without writing a %s file. Last output: %s", m.Name, m.OutputExt, tail.String())
+	return "", fmt.Errorf("%s finished without writing a %s file. Last output: %s", m.Name, ext, tail.String())
 }
 
 // Command returns the engine's arguments with the placeholders filled in.
@@ -109,6 +129,13 @@ func (m *Manifest) Command(j Job) []string {
 		"{gpu}":       strconv.Itoa(j.GPU),
 		"{engineDir}": m.Dir(),
 		"{model}":     "",
+		"{modelDir}":  m.ModelsDir(),
+		"{modelPath}": m.ModelPath(j.Model),
+		"{inWidth}":   strconv.Itoa(j.InWidth),
+		"{inHeight}":  strconv.Itoa(j.InHeight),
+		"{outWidth}":  strconv.Itoa(j.InWidth * max(1, j.Scale)),
+		"{outHeight}": strconv.Itoa(j.InHeight * max(1, j.Scale)),
+		"{outShort}":  strconv.Itoa(min(j.InWidth, j.InHeight) * max(1, j.Scale)),
 	}
 	if j.Model != nil {
 		vars["{model}"] = j.Model.ID

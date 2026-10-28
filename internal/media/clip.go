@@ -6,9 +6,9 @@ import (
 )
 
 // AudioClip decodes length seconds of audio starting at start into a
-// 16-bit WAV file at out, keeping the source's rate and channels. A zero
-// length takes the whole file.
-func (t Tools) AudioClip(ctx context.Context, path string, start, length float64, out string, onProgress Progress) error {
+// 16-bit WAV file at out, keeping the source's channels, and its sample
+// rate unless rate is set. A zero length takes the whole file.
+func (t Tools) AudioClip(ctx context.Context, path string, start, length float64, rate int, out string, onProgress Progress) error {
 	args := []string{}
 	if start > 0 {
 		args = append(args, "-ss", seconds(start))
@@ -16,7 +16,11 @@ func (t Tools) AudioClip(ctx context.Context, path string, start, length float64
 	if length > 0 {
 		args = append(args, "-t", seconds(length))
 	}
-	args = append(args, "-i", path, "-vn", "-map", "0:a:0", "-acodec", "pcm_s16le", out)
+	args = append(args, "-i", path, "-vn", "-map", "0:a:0", "-acodec", "pcm_s16le")
+	if rate > 0 {
+		args = append(args, "-ar", itoa(rate))
+	}
+	args = append(args, out)
 	return t.ffmpeg(ctx, length, onProgress, args...)
 }
 

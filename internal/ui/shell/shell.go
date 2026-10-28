@@ -54,15 +54,31 @@ func (sh *Shell) View() giode.Element {
 	if sh.bar != nil {
 		bar = sh.bar.Title(title(sh.s))
 	}
-	return giode.Stack(giode.Styles{Width: -1, Height: -1, Background: theme.Background},
+	root := []giode.Element{
 		bar,
 		giode.Row(giode.Styles{Width: -1, FlexGrow: 1, Wrap: giode.WrapNoWrap},
 			Sidebar(sh.s),
 			giode.Box(giode.Styles{Width: 1, Height: -1, Background: theme.Faint()}),
 			giode.Box(giode.Styles{FlexGrow: 1, Height: -1}, page),
 		),
-		// Overlays last, so they paint above everything.
-		sh.engines.Overlay(),
-		sh.s.Toasts,
-	)
+	}
+	// Overlays last, so they paint above everything, in a layer outside
+	// the layout: an open dialog would otherwise take space from the page.
+	// Gio blends in linear light, so the dialog's own scrim barely shows on
+	// the dark theme; a deeper one goes under it.
+	if sh.engines.DialogOpen() {
+		root = append(root, giode.Box(giode.Styles{
+			Position: giode.PositionAbsolute,
+			Top:      giode.Flush, Left: giode.Flush, Right: giode.Flush, Bottom: giode.Flush,
+			Background: "#000000A0",
+		}))
+	}
+	for _, o := range sh.engines.Overlays() {
+		root = append(root, giode.Box(giode.Styles{
+			Position: giode.PositionAbsolute,
+			Top:      giode.Flush, Left: giode.Flush, Right: giode.Flush, Bottom: giode.Flush,
+		}, o))
+	}
+	root = append(root, sh.s.Toasts)
+	return giode.Stack(giode.Styles{Width: -1, Height: -1, Background: theme.Background}, root...)
 }

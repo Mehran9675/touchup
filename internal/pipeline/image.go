@@ -22,9 +22,14 @@ func Image(ctx context.Context, o Options, in, out string, report Reporter) erro
 	if err := o.Tools.ConvertImage(ctx, in, src); err != nil {
 		return err
 	}
+	info, err := o.Tools.Probe(ctx, src)
+	if err != nil {
+		return err
+	}
 	report(Update{Stage: "Upscaling", Frac: 0.05})
-	result, err := o.Engine.Run(ctx, o.job(src, filepath.Join(ws.out, "source"+o.Engine.OutputExt),
-		ws.in, ws.out, report, "Upscaling", 0.05, 0.95))
+	j := o.job(src, filepath.Join(ws.out, "source"+o.imageExt()), ws.in, ws.out, report, "Upscaling", 0.05, 0.95)
+	j.OutputExt = o.imageExt()
+	result, err := o.Engine.Run(ctx, sized(j, info.Width, info.Height))
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/mehran9675/giode"
 	"github.com/mehran9675/giode/components/scroll"
 
+	"github.com/mehran9675/touchup/internal/engine"
 	"github.com/mehran9675/touchup/internal/media"
 	"github.com/mehran9675/touchup/internal/ui/components"
 	"github.com/mehran9675/touchup/internal/ui/format"
@@ -25,6 +26,7 @@ type Inspector struct {
 	preview *giode.ButtonElement
 	run     *giode.ButtonElement
 	browse  *giode.ButtonElement
+	models  *giode.ButtonElement
 }
 
 // NewInspector creates the inspector.
@@ -36,6 +38,7 @@ func NewInspector(s *store.Store) *Inspector {
 	in.run = giode.Button("Upscale", theme.PrimaryStyle().With(wide)).OnClick(s.Enqueue).
 		Icon(giode.Icon("sparkles", giode.Styles{Width: 16, Height: 16}))
 	in.browse = theme.SecondaryButton("Browse engines", "package").OnClick(func() { s.Navigate(store.PageEngines) })
+	in.models = theme.SecondaryButton("Get models", "download").OnClick(func() { s.Navigate(store.PageEngines) })
 	in.scroll = giode.Scroll(in.content, giode.Styles{ScrollBar: giode.ScrollBar{Width: 4, ThumbColor: theme.Border}})
 	return in
 }
@@ -44,7 +47,7 @@ func NewInspector(s *store.Store) *Inspector {
 func (in *Inspector) View() giode.Element {
 	sess := in.s.Session
 	sel := in.s.Selected(sess.Kind)
-	canRun := sel.Engine != nil && !sess.Loading && sess.Err == ""
+	canRun := sel.Ready() && !sess.Loading && sess.Err == ""
 
 	verb := map[media.Kind]string{media.Image: "Upscale image", media.Video: "Upscale video", media.Audio: "Enhance audio"}[sess.Kind]
 	in.run.Label(verb).Disabled(!canRun)
@@ -100,7 +103,11 @@ func (in *Inspector) content() giode.Element {
 		installed := s.Installed(m.ID)
 		installedAny = installedAny || installed
 		selected := sel.Engine != nil && sel.Engine.ID == m.ID
-		rows = append(rows, components.EngineOption(m, selected, installed, func() {
+		note := ""
+		if installed && len(m.Models) > 0 && s.InstalledModels(m) == 0 {
+			note = "No model installed yet"
+		}
+		rows = append(rows, components.EngineOption(m, selected, installed, note, func() {
 			if installed {
 				s.Choose(kind, m.ID, "", 0)
 			} else {
@@ -114,11 +121,23 @@ func (in *Inspector) content() giode.Element {
 	}
 	sections = append(sections, giode.Stack(giode.Styles{Gap: 8, Width: -1}, rows...))
 
-	if sel.Engine != nil {
-		// Models.
-		if len(sel.Engine.Models) > 1 {
+	if sel.Engine != nil && !sel.Ready() {
+		sections = append(sections, giode.Stack(giode.Styles{Gap: 8, Width: -1},
+			components.Banner("download", theme.Info, "Choose a model to download",
+				sel.Engine.Name+" is installed, but its models are separate downloads. Pick one on the Engines page."),
+			in.models))
+	}
+	if sel.Ready() {
+		// Models: the installed ones.
+		var available []*engine.Model
+		for i := range sel.Engine.Models {
+			if mdl := &sel.Engine.Models[i]; s.ModelInstalled(sel.Engine, mdl) {
+				available = append(available, mdl)
+			}
+		}
+		if len(available) > 1 {
 			pills := []giode.Element{}
-			for _, mdl := range sel.Engine.Models {
+			for _, mdl := range available {
 				pills = append(pills, components.Pill("model:"+sel.Engine.ID, mdl.ID, mdl.Name,
 					sel.Model != nil && sel.Model.ID == mdl.ID, func() { s.Choose(kind, "", mdl.ID, 0) }))
 			}

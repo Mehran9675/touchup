@@ -35,13 +35,15 @@ type Store struct {
 	Session *Session
 	Jobs    []*Job
 
-	// Installs tracks engines being installed, by ID.
-	Installs map[string]*Install
+	// Installs tracks engines being installed, by ID, and
+	// ModelInstalls models being downloaded, by ModelKey.
+	Installs      map[string]*Install
+	ModelInstalls map[string]*Install
 
 	Player  *media.Player
 	Playing string // the file playing, or ""
 
-	installed map[string]bool
+	installed map[string]bool // by engine ID and by ModelKey
 	nextID    int
 }
 
@@ -49,12 +51,13 @@ type Store struct {
 func New(toasts *giode.ToasterElement) *Store {
 	reg, errs := engine.Load()
 	s := &Store{
-		Toasts:    toasts,
-		Registry:  reg,
-		Settings:  settings.Load(),
-		Installs:  map[string]*Install{},
-		Player:    &media.Player{},
-		installed: map[string]bool{},
+		Toasts:        toasts,
+		Registry:      reg,
+		Settings:      settings.Load(),
+		Installs:      map[string]*Install{},
+		ModelInstalls: map[string]*Install{},
+		Player:        &media.Player{},
+		installed:     map[string]bool{},
 	}
 	s.locateTools()
 	s.refreshInstalled()
@@ -79,11 +82,35 @@ func (s *Store) Navigate(p Page) { s.Page = p }
 // Installed reports whether engine id is ready to run.
 func (s *Store) Installed(id string) bool { return s.installed[id] }
 
-// refreshInstalled checks which engines are installed. It touches the
-// disk, so it runs when something changed rather than every frame.
+// ModelInstalled reports whether a model of engine m is downloaded.
+func (s *Store) ModelInstalled(m *engine.Manifest, mdl *engine.Model) bool {
+	return s.installed[ModelKey(m, mdl)]
+}
+
+// ModelKey identifies a model of an engine.
+func ModelKey(m *engine.Manifest, mdl *engine.Model) string { return m.ID + "/" + mdl.ID }
+
+// InstalledModels counts an engine's downloaded models.
+func (s *Store) InstalledModels(m *engine.Manifest) int {
+	n := 0
+	for i := range m.Models {
+		if s.ModelInstalled(m, &m.Models[i]) {
+			n++
+		}
+	}
+	return n
+}
+
+// refreshInstalled checks which engines and models are installed. It
+// touches the disk, so it runs when something changed rather than every
+// frame.
 func (s *Store) refreshInstalled() {
 	for _, m := range s.Registry.All() {
 		s.installed[m.ID] = m.Installed()
+		for i := range m.Models {
+			mdl := &m.Models[i]
+			s.installed[ModelKey(m, mdl)] = s.installed[m.ID] && m.ModelInstalled(mdl)
+		}
 	}
 }
 
