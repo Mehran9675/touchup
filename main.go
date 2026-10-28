@@ -39,6 +39,7 @@ func main() {
 		Size:       image.Pt(1360, 860),
 		MinSize:    image.Pt(1080, 700),
 		Resizable:  true,
+		Frameless:  shell.CustomFrame(),
 		Center:     true,
 		Background: theme.Background,
 		Icon:       assets.AppIcon,
