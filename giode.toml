@@ -1,0 +1,53 @@
+# giode.toml configures how the giode CLI builds this app.
+# Reference: https://github.com/mehran9675/giode-cli#giodetoml
+
+[app]
+name = "TouchUp"
+id = "com.mehran9675.touchup"            # reverse-DNS, unique to your app; stores never let it change
+version = "0.1.0"
+build = 1                    # raise for every store upload (giode bump)
+icon = "assets/icon.png"
+package = "."
+platforms = ["linux", "windows", "macos"]   # what giode build builds with no target named
+publisher = "mehran9675"
+description = "Upscale images, video and audio with AI engines that run on your computer."
+website = "https://github.com/mehran9675/touchup"
+
+[macos]
+min_os = 11
+# identity = "Developer ID Application: Your Name (TEAMID)"  # signs giode build -release
+# notary_id = "you@example.com"     # notarizes, with the password in $GIODE_NOTARY_PASS
+# notary_team_id = "TEAMID"
+
+[windows]
+arch = "amd64"
+# cc = "x86_64-w64-mingw32-gcc"  # only for cgo apps linking C libraries
+
+[windows.installer]
+# per_machine = true         # install for all users into Program Files (asks for admin)
+# desktop_shortcut = true
+# license = "assets/license.txt"
+
+[windows.signing]
+# certificate = "codesign.pfx"   # created by giode cert (testing) or bought; password in $GIODE_WINDOWS_CERT_PASS
+# timestamp = "http://timestamp.digicert.com"
+
+[linux]
+categories = ["AudioVideo", "Graphics"]     # freedesktop menu categories
+# license = "MIT"            # SPDX, for .deb, .rpm and AppStream
+
+# "Open with TouchUp" for the media it upscales.
+[[file_types]]
+name = "Image"
+extensions = ["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"]
+mime_types = ["image/png", "image/jpeg", "image/webp", "image/bmp", "image/tiff"]
+
+[[file_types]]
+name = "Video"
+extensions = ["mp4", "mov", "mkv", "webm", "avi", "m4v"]
+mime_types = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm", "video/x-msvideo"]
+
+[[file_types]]
+name = "Audio"
+extensions = ["wav", "flac", "mp3", "m4a", "ogg", "opus", "aiff"]
+mime_types = ["audio/wav", "audio/flac", "audio/mpeg", "audio/mp4", "audio/ogg", "audio/opus", "audio/aiff"]
