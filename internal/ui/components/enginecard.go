@@ -96,14 +96,17 @@ func EngineCard(p EngineCardProps) giode.Element {
 	if p.Models != nil {
 		children = append(children, p.Models)
 	}
+	// The footer group is the same element whether the card is measured
+	// or stretched to its row, so both lay out the same children and
+	// gaps; when stretched it grows and pushes the footer to the bottom.
+	bottom := giode.Styles{Width: -1, Gap: 14, Justify: giode.JustifyEnd}
 	if p.Height > 0 {
-		// Push the footer to the bottom of a card stretched to its row.
-		children = append(children, giode.Box(giode.Styles{FlexGrow: 1}))
+		bottom.FlexGrow = 1
 	}
-	children = append(children,
+	children = append(children, giode.Stack(bottom,
 		giode.Divider(giode.Styles{Color: theme.Faint()}),
 		giode.Box(giode.Styles{Width: -1, Height: footerHeight, Align: giode.AlignCenter}, p.Footer),
-	)
+	))
 	return Card(giode.Styles{
 		Width: properties.Width(p.Width), Height: properties.Height(p.Height), Gap: 14,
 		Padding: giode.Inset{Top: 20, Right: 20, Bottom: 12, Left: 20},
