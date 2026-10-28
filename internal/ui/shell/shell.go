@@ -4,6 +4,7 @@ package shell
 
 import (
 	"github.com/mehran9675/giode"
+	"github.com/mehran9675/giode/components/titlebar"
 
 	"github.com/mehran9675/touchup/internal/ui/pages"
 	"github.com/mehran9675/touchup/internal/ui/store"
@@ -17,17 +18,23 @@ type Shell struct {
 	engines  *pages.Engines
 	queue    *pages.Queue
 	settings *pages.Settings
+	bar      *titlebar.TitleBar // nil with the system frame
 }
 
-// New builds every page once.
+// New builds every page once, and the title bar when the window is
+// frameless.
 func New(s *store.Store, dragging func() bool) *Shell {
-	return &Shell{
+	sh := &Shell{
 		s:        s,
 		studio:   pages.NewStudio(s, dragging),
 		engines:  pages.NewEngines(s),
 		queue:    pages.NewQueue(s),
 		settings: pages.NewSettings(s),
 	}
+	if CustomFrame() {
+		sh.bar = newTitleBar(s)
+	}
+	return sh
 }
 
 // View lays out the window.
@@ -43,8 +50,13 @@ func (sh *Shell) View() giode.Element {
 	default:
 		page = sh.studio.View()
 	}
+	var bar giode.Element = giode.Box(giode.Styles{Display: giode.DisplayNone})
+	if sh.bar != nil {
+		bar = sh.bar.Title(title(sh.s))
+	}
 	return giode.Stack(giode.Styles{Width: -1, Height: -1, Background: theme.Background},
-		giode.Row(giode.Styles{Width: -1, Height: -1, Wrap: giode.WrapNoWrap},
+		bar,
+		giode.Row(giode.Styles{Width: -1, FlexGrow: 1, Wrap: giode.WrapNoWrap},
 			Sidebar(sh.s),
 			giode.Box(giode.Styles{Width: 1, Height: -1, Background: theme.Faint()}),
 			giode.Box(giode.Styles{FlexGrow: 1, Height: -1}, page),

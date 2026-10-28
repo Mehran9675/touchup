@@ -25,6 +25,9 @@ before/after comparisons. Nothing is uploaded.
 - **Output control.** PNG/JPEG/WebP, H.264/H.265/ProRes with a quality setting, WAV/FLAC/MP3,
   GPU selection, and a custom output folder.
 - Dark and light themes, file drop, and "Open with TouchUp" on every desktop.
+- A custom title bar on Windows. Linux and macOS keep the system frame, because Gio can't
+  resize a frameless window from its edges there; set `TOUCHUP_CUSTOM_FRAME=1` to use the
+  custom bar anyway (`0` turns it off on Windows).
 
 ## Built-in engines
 
@@ -123,6 +126,7 @@ Custom manifests are stored next to the installed engines, in `custom-engines/`.
 ```
 main.go                 window setup and the root view
 assets/                 app icon, Inter font, Lucide icons (with their licenses)
+tools/icon/             draws assets/icon.png: go run ./tools/icon assets/icon.png
 internal/
   engine/               manifests, the built-in catalog, install, run
   media/                FFmpeg: probe, frames, clips, waveforms, spectrograms, playback
