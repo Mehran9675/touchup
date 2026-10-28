@@ -18,7 +18,7 @@ func Audio(ctx context.Context, o Options, in, out string, duration float64, rep
 	defer ws.close()
 
 	src := filepath.Join(ws.in, "source.wav")
-	if err := o.Tools.AudioClip(ctx, in, 0, 0, src, func(f float64) {
+	if err := o.Tools.AudioClip(ctx, in, 0, 0, o.Engine.InputRate, src, func(f float64) {
 		report(Update{Stage: "Decoding", Frac: 0.05 * f})
 	}); err != nil {
 		return err

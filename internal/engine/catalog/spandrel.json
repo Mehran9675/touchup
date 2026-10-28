@@ -1,0 +1,308 @@
+{
+  "id": "spandrel",
+  "name": "PyTorch SR",
+  "featured": true,
+  "vendor": "spandrel · community models",
+  "description": "Runs the strongest community image models (DRCT, DAT, ATD, RealPLKSR, SwinIR, Real-ESRGAN) on your GPU. Install only the models you want.",
+  "homepage": "https://github.com/chaiNNer-org/spandrel",
+  "license": "MIT · models vary",
+  "tags": [
+    "Transformer",
+    "GAN",
+    "Photo",
+    "Anime",
+    "PyTorch"
+  ],
+  "requirements": "Python 3.10+ · NVIDIA GPU recommended; Apple Silicon and CPU work, slowly",
+  "media": [
+    "image",
+    "video"
+  ],
+  "input": "image",
+  "batch": true,
+  "install": {
+    "type": "pip",
+    "size": "≈ 3 GB with PyTorch, plus models",
+    "scripts": [
+      "spandrel_runner.py"
+    ],
+    "pip": [
+      {
+        "args": [
+          "torch",
+          "torchvision"
+        ],
+        "indexURL": {
+          "windows": "https://download.pytorch.org/whl/cu128"
+        }
+      },
+      {
+        "args": [
+          "spandrel",
+          "spandrel_extra_arches",
+          "pillow",
+          "numpy"
+        ]
+      }
+    ]
+  },
+  "executable": {
+    "*": "python"
+  },
+  "args": [
+    "{engineDir}/spandrel_runner.py",
+    "--model",
+    "{modelPath}",
+    "--input",
+    "{input}",
+    "--output",
+    "{output}",
+    "--scale",
+    "{scale}",
+    "--tile",
+    "512"
+  ],
+  "gpuArgs": [
+    "--gpu",
+    "{gpu}"
+  ],
+  "outputExt": ".png",
+  "scales": [
+    2,
+    3,
+    4
+  ],
+  "defaultScale": 4,
+  "models": [
+    {
+      "id": "nomos2-drct-l",
+      "name": "DRCT-L · Best detail",
+      "description": "The highest-quality model here: a large transformer for photos with light blur, noise or compression. Slow.",
+      "size": "243 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Phhofm/models/releases/download/4xNomos2_hq_drct-l/4xNomos2_hq_drct-l.pth",
+          "name": "4xNomos2_hq_drct-l.pth",
+          "sha256": "9f10855fb26dfc2e1c475188d0f16e4692e2e7ca792d46ddf39d75b6ed2326dd"
+        }
+      ],
+      "recommended": true
+    },
+    {
+      "id": "nomos8k-dat",
+      "name": "DAT · Photos",
+      "description": "Natural, faithful detail for real photos, including noisy and blurry ones.",
+      "size": "155 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Phhofm/models/releases/download/4xNomos8kDAT/4xNomos8kDAT.pth",
+          "name": "4xNomos8kDAT.pth",
+          "sha256": "2926aa419b6f47edfec125d5314af172b6c4ef16f483e44e0d2428bc0632d0f4"
+        }
+      ]
+    },
+    {
+      "id": "nomos2-atd",
+      "name": "ATD · Photos, balanced",
+      "description": "Close to DRCT quality at about half the size.",
+      "size": "82 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Phhofm/models/releases/download/4xNomos2_hq_atd/4xNomos2_hq_atd.pth",
+          "name": "4xNomos2_hq_atd.pth",
+          "sha256": "06e007a70af59c4e3acfbfbd5dca4ed20dfaeadd9857ffca63c8c807a8c40283"
+        }
+      ]
+    },
+    {
+      "id": "realwebphoto-dat2",
+      "name": "DAT2 · Web and social photos",
+      "description": "For photos that were downscaled and recompressed by websites and messengers.",
+      "size": "140 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Phhofm/models/releases/download/4xRealWebPhoto_v4_dat2/4xRealWebPhoto_v4_dat2.pth",
+          "name": "4xRealWebPhoto_v4_dat2.pth",
+          "sha256": "9b82f8f60826e59b9d2e56a6e6ad9a842b84d57a9ec5ed7377bf120032b2c4c9"
+        }
+      ]
+    },
+    {
+      "id": "nomos2-realplksr",
+      "name": "RealPLKSR · Fast photos",
+      "description": "Quick with good quality: the best choice for long videos.",
+      "size": "30 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Phhofm/models/releases/download/4xNomos2_realplksr_dysample/4xNomos2_realplksr_dysample.pth",
+          "name": "4xNomos2_realplksr_dysample.pth",
+          "sha256": "96c8476ed2c42107628d10562b32ae89e7be3c2f7a53d29504823e9bafe8121d"
+        }
+      ],
+      "recommended": true
+    },
+    {
+      "id": "webphoto-realplksr",
+      "name": "RealPLKSR · Fast web photos",
+      "description": "The fast model for compressed photos and video.",
+      "size": "30 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Phhofm/models/releases/download/4xNomosWebPhoto_RealPLKSR/4xNomosWebPhoto_RealPLKSR.pth",
+          "name": "4xNomosWebPhoto_RealPLKSR.pth",
+          "sha256": "a9db66c9b674c6a5025b6ef3bee71a57c33b8605d8a2de0980470f89002efbbe"
+        }
+      ]
+    },
+    {
+      "id": "swinir-l-real",
+      "name": "SwinIR-L · Real-world",
+      "description": "A proven transformer for heavily degraded photos.",
+      "size": "142 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth",
+          "name": "003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth",
+          "sha256": "99adfa91350a84c99e946c1eb3d8fce34bc28f57d807b09dc8fe40a316328c0a"
+        }
+      ]
+    },
+    {
+      "id": "realesrgan-x4plus",
+      "name": "Real-ESRGAN x4plus",
+      "description": "The classic all-rounder: strong cleanup of blur, noise and JPEG artifacts.",
+      "size": "67 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
+          "name": "RealESRGAN_x4plus.pth",
+          "sha256": "4fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1"
+        }
+      ]
+    },
+    {
+      "id": "realesrgan-x2plus",
+      "name": "Real-ESRGAN x2plus",
+      "description": "Real-ESRGAN trained for 2x, for sources that are only a little small.",
+      "size": "67 MB",
+      "scales": [
+        2
+      ],
+      "files": [
+        {
+          "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth",
+          "name": "RealESRGAN_x2plus.pth",
+          "sha256": "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb"
+        }
+      ]
+    },
+    {
+      "id": "realesr-general-v3",
+      "name": "Real-ESRGAN General v3 · Tiny",
+      "description": "A 5 MB model that runs fast even on modest GPUs.",
+      "size": "5 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
+          "name": "realesr-general-x4v3.pth",
+          "sha256": "8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292"
+        }
+      ]
+    },
+    {
+      "id": "lexica-rrdb",
+      "name": "AI-generated images",
+      "description": "Trained on Stable Diffusion images: sharpens generated art without inventing noise.",
+      "size": "34 MB",
+      "scales": [
+        2
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Phhofm/models/releases/download/2xLexicaRRDBNet/2xLexicaRRDBNet.pth",
+          "name": "2xLexicaRRDBNet.pth",
+          "sha256": "a88a86e1df952668ef5b1edc4cd8d0cf56ba4681b72f26c6e90f2415c9195802"
+        }
+      ]
+    },
+    {
+      "id": "animesharp-v4",
+      "name": "AnimeSharp V4 · Anime",
+      "description": "Crisp lines and clean flats for anime and cartoons.",
+      "size": "31 MB",
+      "scales": [
+        2
+      ],
+      "files": [
+        {
+          "url": "https://github.com/Kim2091/Kim2091-Models/releases/download/2x-AnimeSharpV4/2x-AnimeSharpV4_RCAN.safetensors",
+          "name": "2x-AnimeSharpV4_RCAN.safetensors",
+          "sha256": "6470bb91d6622d6acdff81132c1a8615b961b919ce2b9a01ce993378500cfbe1"
+        }
+      ]
+    },
+    {
+      "id": "realesrgan-anime-6b",
+      "name": "Real-ESRGAN Anime",
+      "description": "Real-ESRGAN tuned for illustrations and anime stills.",
+      "size": "18 MB",
+      "scales": [
+        2,
+        3,
+        4
+      ],
+      "files": [
+        {
+          "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth",
+          "name": "RealESRGAN_x4plus_anime_6B.pth",
+          "sha256": "f872d837d3c90ed2e05227bed711af5671a6fd1c9f7d7e91c911a61f155e99da"
+        }
+      ]
+    }
+  ]
+}

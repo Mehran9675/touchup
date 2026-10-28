@@ -45,13 +45,21 @@ type Manifest struct {
 	Executable map[string]string `json:"executable"`
 	// Args are the command's arguments, with placeholders replaced:
 	// {input}, {output}, {inputDir}, {outputDir}, {scale}, {gpu},
-	// {engineDir}, {model}. An argument that is exactly "{modelArgs}"
-	// expands to the selected model's arguments.
+	// {engineDir}, {model}, {modelDir}, {modelPath} (the model's first
+	// file), {inWidth}, {inHeight}, {outWidth}, {outHeight} and {outShort}
+	// (the output's shorter side). An argument that is exactly
+	// "{modelArgs}" expands to the selected model's arguments.
 	Args []string `json:"args"`
 	// GPUArgs are appended when the user picked a GPU.
 	GPUArgs []string `json:"gpuArgs,omitempty"`
 	// OutputExt is the extension the engine writes: ".png", ".wav".
 	OutputExt string `json:"outputExt"`
+	// ImageOutputExt is what a video engine writes when it's given an
+	// image. Defaults to ".png".
+	ImageOutputExt string `json:"imageOutputExt,omitempty"`
+	// InputRate is the sample rate an audio engine needs its input in;
+	// 0 keeps the file's own.
+	InputRate int `json:"inputRate,omitempty"`
 
 	// Scales offered to the user; empty for engines with a fixed output
 	// (most audio engines).
@@ -62,6 +70,9 @@ type Manifest struct {
 	// Progress is a regular expression whose first group is a
 	// percentage in the engine's output. Defaults to "N%".
 	Progress string `json:"progress,omitempty"`
+
+	// Featured engines are listed first: the strongest of the catalog.
+	Featured bool `json:"featured,omitempty"`
 
 	// Custom marks engines the user added; set by the registry.
 	Custom bool `json:"-"`
@@ -75,19 +86,60 @@ type Model struct {
 	Args        []string `json:"args,omitempty"`
 	// Scales overrides the engine's scales for this model.
 	Scales []int `json:"scales,omitempty"`
+	// Files are the weights to download, into the engine's models
+	// folder. A model without files comes with the engine.
+	Files []ModelFile `json:"files,omitempty"`
+	// Size is a display hint for the download: "64 MB", "≈ 4 GB".
+	Size string `json:"size,omitempty"`
+	// Recommended marks the model to suggest first.
+	Recommended bool `json:"recommended,omitempty"`
+}
+
+// ModelFile is one file of a model's weights.
+type ModelFile struct {
+	URL string `json:"url"`
+	// Name is the file's path inside the models folder; files with the
+	// same name are shared between models.
+	Name   string `json:"name"`
+	SHA256 string `json:"sha256,omitempty"`
 }
 
 // InstallSpec says how to install an engine.
 type InstallSpec struct {
 	// Type is "archive" (download and unpack), "pip" (a Python virtual
-	// environment with Packages) or "none" (Executable already exists).
+	// environment) or "none" (Executable already exists).
 	Type string `json:"type"`
 	// URLs of archives by "goos/goarch", "goos" or "*".
 	URLs map[string]string `json:"urls,omitempty"`
-	// Packages are pip requirement specifiers.
+	// Packages are pip requirement specifiers, installed in one step.
 	Packages []string `json:"packages,omitempty"`
+	// Pip are install steps run in order after Packages, for packages
+	// that need their own index (PyTorch's CUDA builds on Windows).
+	Pip []PipStep `json:"pip,omitempty"`
+	// Source is an archive of the engine's code, unpacked into the
+	// engine's folder before the Python packages are installed, so a
+	// step can install its requirements file.
+	Source *Source `json:"source,omitempty"`
+	// Scripts are runner scripts TouchUp ships, copied into the engine's
+	// folder.
+	Scripts []string `json:"scripts,omitempty"`
 	// Size is a display hint: "45 MB", "2.5 GB with models".
 	Size string `json:"size,omitempty"`
+}
+
+// PipStep is one pip install command.
+type PipStep struct {
+	// Args are pip install arguments; {engineDir} is replaced.
+	Args []string `json:"args"`
+	// IndexURL replaces PyPI for this step, by "goos" or "*".
+	IndexURL map[string]string `json:"indexURL,omitempty"`
+}
+
+// Source is an archive of an engine's code.
+type Source struct {
+	URL string `json:"url"`
+	// Dir is the folder inside the engine's folder it's unpacked into.
+	Dir string `json:"dir"`
 }
 
 // Handles reports whether the engine upscales kind ("image", "video",
@@ -161,7 +213,7 @@ func (m *Manifest) Validate() error {
 			problems = append(problems, "an archive install needs urls")
 		}
 	case "pip":
-		if len(m.Install.Packages) == 0 {
+		if len(m.Install.Packages) == 0 && len(m.Install.Pip) == 0 {
 			problems = append(problems, "a pip install needs packages")
 		}
 	case "none":
@@ -176,6 +228,13 @@ func (m *Manifest) Validate() error {
 	}
 	if !strings.HasPrefix(m.OutputExt, ".") {
 		problems = append(problems, `outputExt must start with a dot, like ".png"`)
+	}
+	for _, mdl := range m.Models {
+		for _, f := range mdl.Files {
+			if f.URL == "" || f.Name == "" || strings.Contains(f.Name, "..") {
+				problems = append(problems, fmt.Sprintf("model %q has a file without a URL or a safe name", mdl.ID))
+			}
+		}
 	}
 	if m.Progress != "" {
 		if _, err := regexp.Compile(m.Progress); err != nil {

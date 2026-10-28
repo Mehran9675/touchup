@@ -164,6 +164,12 @@ func (r *Registry) sort() {
 			}
 			return -1
 		}
+		if a.Featured != b.Featured {
+			if a.Featured {
+				return -1
+			}
+			return 1
+		}
 		return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
 	})
 }

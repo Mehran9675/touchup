@@ -35,9 +35,13 @@ func PreviewFrame(ctx context.Context, o Options, path string, at float64, repor
 		if err := o.Tools.VideoClip(ctx, path, start, clipLength, clip); err != nil {
 			return FramePreview{}, err
 		}
+		info, err := o.Tools.Probe(ctx, clip)
+		if err != nil {
+			return FramePreview{}, err
+		}
 		report(Update{Stage: "Upscaling", Frac: 0.1})
-		result, err := o.Engine.Run(ctx, o.job(clip, filepath.Join(ws.out, "clip"+o.Engine.OutputExt),
-			ws.in, ws.out, report, "Upscaling", 0.1, 0.95))
+		result, err := o.Engine.Run(ctx, sized(o.job(clip, filepath.Join(ws.out, "clip"+o.Engine.OutputExt),
+			ws.in, ws.out, report, "Upscaling", 0.1, 0.95), info.Width, info.Height))
 		if err != nil {
 			return FramePreview{}, err
 		}
@@ -54,13 +58,14 @@ func PreviewFrame(ctx context.Context, o Options, path string, at float64, repor
 	if err := o.Tools.SaveFrameAt(ctx, path, at, frame); err != nil {
 		return FramePreview{}, err
 	}
-	report(Update{Stage: "Upscaling", Frac: 0.1})
-	result, err := o.Engine.Run(ctx, o.job(frame, filepath.Join(ws.out, "frame"+o.Engine.OutputExt),
-		ws.in, ws.out, report, "Upscaling", 0.1, 0.95))
+	before, err := o.Tools.LoadImage(ctx, frame)
 	if err != nil {
 		return FramePreview{}, err
 	}
-	before, err := o.Tools.LoadImage(ctx, frame)
+	report(Update{Stage: "Upscaling", Frac: 0.1})
+	b := before.Bounds()
+	result, err := o.Engine.Run(ctx, sized(o.job(frame, filepath.Join(ws.out, "frame"+o.Engine.OutputExt),
+		ws.in, ws.out, report, "Upscaling", 0.1, 0.95), b.Dx(), b.Dy()))
 	if err != nil {
 		return FramePreview{}, err
 	}
@@ -102,7 +107,7 @@ func PreviewAudio(ctx context.Context, o Options, path string, start, length flo
 
 	clip := filepath.Join(ws.in, "section.wav")
 	report(Update{Stage: "Cutting the section", Frac: 0.03})
-	if err := o.Tools.AudioClip(ctx, path, start, length, clip, nil); err != nil {
+	if err := o.Tools.AudioClip(ctx, path, start, length, o.Engine.InputRate, clip, nil); err != nil {
 		return nil, err
 	}
 	report(Update{Stage: "Enhancing", Frac: 0.06})

@@ -5,6 +5,7 @@ package pipeline
 
 import (
 	"errors"
+	"path/filepath"
 
 	"github.com/mehran9675/touchup/internal/engine"
 	"github.com/mehran9675/touchup/internal/media"
@@ -43,9 +44,32 @@ func (o Options) check() error {
 	return nil
 }
 
+// imageExt is what the engine writes when it's given an image.
+func (o Options) imageExt() string {
+	if o.Engine.Input != "video" {
+		return o.Engine.OutputExt
+	}
+	if o.Engine.ImageOutputExt != "" {
+		return o.Engine.ImageOutputExt
+	}
+	return ".png"
+}
+
+// sized sets the input size on j, for engines that take a target
+// resolution.
+func sized(j engine.Job, w, h int) engine.Job {
+	j.InWidth, j.InHeight = w, h
+	return j
+}
+
 func (o Options) job(in, out, inDir, outDir string, report Reporter, stage string, from, to float64) engine.Job {
+	var path []string
+	if o.Tools.FFmpeg != "" {
+		path = []string{filepath.Dir(o.Tools.FFmpeg)}
+	}
 	return engine.Job{
-		Model: o.Model, Scale: o.Scale, GPU: o.Settings.GPU,
+		PathDirs: path,
+		Model:    o.Model, Scale: o.Scale, GPU: o.Settings.GPU,
 		Input: in, Output: out, InputDir: inDir, OutputDir: outDir,
 		Progress: func(f float64) { report(Update{Stage: stage, Frac: from + (to-from)*f}) },
 		Log:      func(line string) { report(Update{Stage: stage, Frac: -1, Line: line}) },

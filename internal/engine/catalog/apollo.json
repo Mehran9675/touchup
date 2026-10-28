@@ -1,0 +1,83 @@
+{
+  "id": "apollo",
+  "name": "Apollo",
+  "featured": true,
+  "vendor": "Tsinghua University · Tencent AI Lab",
+  "description": "Restores music damaged by lossy compression: rebuilds the highs and the air that low-bitrate MP3 and streaming encodes take away.",
+  "homepage": "https://github.com/JusperLee/Apollo",
+  "license": "CC BY-SA 4.0",
+  "tags": [
+    "GAN",
+    "Music",
+    "Restoration",
+    "PyTorch"
+  ],
+  "requirements": "Python 3.10+ · NVIDIA GPU or Apple Silicon recommended",
+  "media": [
+    "audio"
+  ],
+  "input": "audio",
+  "inputRate": 44100,
+  "install": {
+    "type": "pip",
+    "size": "≈ 3 GB with PyTorch, plus the model",
+    "source": {
+      "url": "https://github.com/JusperLee/Apollo/archive/e84bcacc59d5455f05d86a5c97dd4aeb3c14dbb6.zip",
+      "dir": "src"
+    },
+    "pip": [
+      {
+        "args": [
+          "torch",
+          "torchaudio"
+        ],
+        "indexURL": {
+          "windows": "https://download.pytorch.org/whl/cu128"
+        }
+      },
+      {
+        "args": [
+          "numpy",
+          "huggingface-hub",
+          "omegaconf",
+          "soundfile"
+        ]
+      }
+    ]
+  },
+  "executable": {
+    "*": "python"
+  },
+  "args": [
+    "{engineDir}/src/inference.py",
+    "--in_wav",
+    "{input}",
+    "--out_wav",
+    "{output}",
+    "--checkpoint",
+    "{modelPath}",
+    "--device",
+    "auto",
+    "--chunk-seconds",
+    "10",
+    "--overlap-seconds",
+    "1",
+    "--chunk-pad-seconds",
+    "1"
+  ],
+  "outputExt": ".wav",
+  "models": [
+    {
+      "id": "official",
+      "name": "Apollo",
+      "description": "The official checkpoint, trained on MUSDB18-HQ and MoisesDB.",
+      "recommended": true,
+      "files": [
+        {
+          "url": "https://huggingface.co/JusperLee/Apollo/resolve/main/pytorch_model.bin",
+          "name": "apollo/pytorch_model.bin"
+        }
+      ]
+    }
+  ]
+}
