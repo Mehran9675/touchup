@@ -3,11 +3,9 @@ package engine
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,24 +13,10 @@ import (
 	"github.com/mehran9675/touchup/internal/proc"
 )
 
-// FindPython returns the interpreter to create environments with: the
-// configured one, or python3/python on PATH.
-func FindPython(configured string) string {
-	if configured != "" {
-		return configured
-	}
-	for _, name := range []string{"python3", "python"} {
-		if p, err := exec.LookPath(name); err == nil {
-			return p
-		}
-	}
-	return ""
-}
-
 func installPip(ctx context.Context, m *Manifest, python string, report Report) error {
-	python = FindPython(python)
-	if python == "" {
-		return errors.New("Python was not found: install Python 3 or set its path in Settings")
+	python, err := EnsurePython(ctx, python, report)
+	if err != nil {
+		return err
 	}
 	if src := m.Install.Source; src != nil {
 		if err := installSource(ctx, m, src, report); err != nil {

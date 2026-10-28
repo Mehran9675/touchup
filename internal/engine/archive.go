@@ -72,13 +72,18 @@ func extractTar(file, dir string) error {
 		return err
 	}
 	tr := tar.NewReader(gz)
+	var links []*tar.Header
 	for {
 		h, err := tr.Next()
 		if err == io.EOF {
-			return nil
+			return makeLinks(dir, strip, links)
 		}
 		if err != nil {
 			return err
+		}
+		if h.Typeflag == tar.TypeSymlink || h.Typeflag == tar.TypeLink {
+			links = append(links, h)
+			continue
 		}
 		if h.Typeflag != tar.TypeReg && h.Typeflag != tar.TypeDir {
 			continue
@@ -89,6 +94,63 @@ func extractTar(file, dir string) error {
 			return err
 		}
 	}
+}
+
+// makeLinks creates a tarball's links once its files are in place:
+// symbolic links as they are (or as copies where the system refuses
+// them), hard links as copies. Links that would point outside dir are
+// refused.
+func makeLinks(dir, strip string, links []*tar.Header) error {
+	root := filepath.Clean(dir) + string(os.PathSeparator)
+	inside := func(p string) bool { return strings.HasPrefix(filepath.Clean(p), root) }
+	for _, h := range links {
+		name := strings.TrimPrefix(strings.TrimPrefix(path.Clean("/"+h.Name), "/"), strip)
+		target := filepath.Join(dir, filepath.FromSlash(name))
+		if !inside(target) {
+			return fmt.Errorf("archive link %q escapes the install folder", h.Name)
+		}
+		var source string
+		if h.Typeflag == tar.TypeLink {
+			source = filepath.Join(dir, filepath.FromSlash(strings.TrimPrefix(strings.TrimPrefix(path.Clean("/"+h.Linkname), "/"), strip)))
+		} else {
+			source = filepath.Join(filepath.Dir(target), filepath.FromSlash(h.Linkname))
+		}
+		if filepath.IsAbs(h.Linkname) || !inside(source) {
+			return fmt.Errorf("archive link %q points outside the install folder", h.Name)
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		os.Remove(target)
+		if h.Typeflag == tar.TypeSymlink && os.Symlink(filepath.FromSlash(h.Linkname), target) == nil {
+			continue
+		}
+		if err := copyFile(source, target); err != nil {
+			return fmt.Errorf("archive link %q: %w", h.Name, err)
+		}
+	}
+	return nil
+}
+
+func copyFile(from, to string) error {
+	src, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	info, err := src.Stat()
+	if err != nil {
+		return err
+	}
+	dst, err := os.OpenFile(to, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm()|0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		return err
+	}
+	return dst.Close()
 }
 
 func tarNames(file string) ([]string, error) {
