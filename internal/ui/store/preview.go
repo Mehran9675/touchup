@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"github.com/mehran9675/touchup/internal/engine"
 
 	"github.com/mehran9675/touchup/internal/media"
 	"github.com/mehran9675/touchup/internal/pipeline"
@@ -22,7 +23,7 @@ func (s *Store) RunPreview() {
 	s.Player.Stop()
 	ctx, cancel := context.WithCancel(sess.ctx)
 	p := &sess.Preview
-	p.Running, p.Err, p.cancel = true, "", cancel
+	p.Running, p.Err, p.ErrLog, p.cancel = true, "", "", cancel
 	p.Update = pipeline.Update{Stage: "Starting", Frac: 0}
 	report := func(u pipeline.Update) {
 		s.post(func() {
@@ -46,7 +47,7 @@ func (s *Store) RunPreview() {
 				p.Running, p.cancel = false, nil
 				if err != nil {
 					if !errors.Is(err, context.Canceled) {
-						p.Err = err.Error()
+						p.Err, p.ErrLog = errSummary(err), engine.LogOf(err)
 					}
 					return
 				}
@@ -61,7 +62,7 @@ func (s *Store) RunPreview() {
 				p.Running, p.cancel = false, nil
 				if err != nil {
 					if !errors.Is(err, context.Canceled) {
-						p.Err = err.Error()
+						p.Err, p.ErrLog = errSummary(err), engine.LogOf(err)
 					}
 					return
 				}
@@ -98,4 +99,15 @@ func (s *Store) Play(path string) {
 	if err := s.Player.Play(s.Tools, path); err != nil {
 		s.fail(err)
 	}
+}
+
+// errSummary is the short form of an error for a banner or a card: an
+// engine's own reason, without the "Engine failed:" prefix the title
+// already says.
+func errSummary(err error) string {
+	var re *engine.RunError
+	if errors.As(err, &re) {
+		return re.Summary
+	}
+	return err.Error()
 }

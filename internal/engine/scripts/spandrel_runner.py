@@ -13,6 +13,7 @@ import argparse
 import math
 import os
 import sys
+import traceback
 
 import numpy as np
 import torch
@@ -38,19 +39,58 @@ def pick_device(gpu):
     return torch.device("cpu")
 
 
-def load_model(path, device):
-    model = spandrel.ModelLoader(device=device).load_from_file(path)
-    if not isinstance(model, spandrel.ImageModelDescriptor):
-        sys.exit(f"{os.path.basename(path)} is not an image upscaling model")
-    model.eval()
-    dtype = torch.float32
-    if device.type == "cuda":
-        if model.supports_half:
-            dtype = torch.float16
-        elif model.supports_bfloat16:
-            dtype = torch.bfloat16
-    model.to(dtype)
-    return model, dtype
+def describe_device(device):
+    if device.type != "cuda":
+        return str(device)
+    i = device.index if device.index is not None else torch.cuda.current_device()
+    major, minor = torch.cuda.get_device_capability(i)
+    return f"{torch.cuda.get_device_name(i)} (CUDA {torch.version.cuda}, compute {major}.{minor})"
+
+
+# What a GPU raises when it can't run a model: CUDA errors are
+# RuntimeErrors, and newer PyTorch has its own AcceleratorError.
+GPU_ERRORS = (RuntimeError,) + ((torch.AcceleratorError,) if hasattr(torch, "AcceleratorError") else ())
+
+
+class Upscaler:
+    """A loaded model that steps down when the GPU can't run it: from half
+    to full precision, then from the GPU to the CPU."""
+
+    def __init__(self, path, device):
+        self.model = spandrel.ModelLoader(device=torch.device("cpu")).load_from_file(path)
+        if not isinstance(self.model, spandrel.ImageModelDescriptor):
+            raise ValueError(f"{os.path.basename(path)} is not an image upscaling model")
+        self.model.eval()
+        self.place(device, self.best_dtype(device))
+
+    def best_dtype(self, device):
+        if device.type == "cuda":
+            if self.model.supports_half:
+                return torch.float16
+            if self.model.supports_bfloat16:
+                return torch.bfloat16
+        return torch.float32
+
+    def place(self, device, dtype):
+        self.device, self.dtype = device, dtype
+        self.model.to(device)
+        self.model.to(dtype)
+
+    def step_down(self, err):
+        """Moves to a safer setting after err, or returns False when there
+        is none left."""
+        reason = str(err).strip().splitlines()[0] if str(err).strip() else type(err).__name__
+        if self.device.type == "cpu":
+            return False
+        if self.dtype != torch.float32:
+            print(f"The GPU failed in half precision ({reason}); retrying in full precision", flush=True)
+            self.place(self.device, torch.float32)
+        else:
+            print(f"The GPU failed ({reason}); continuing on the CPU, which is much slower", flush=True)
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            self.place(torch.device("cpu"), torch.float32)
+        return True
 
 
 def pad_to(t, req):
@@ -80,8 +120,9 @@ class Progress:
 
 
 @torch.inference_mode()
-def upscale(model, dtype, device, rgb, tile, progress):
+def upscale(up, rgb, tile, progress):
     """Upscales an HxWx3 float32 array in [0, 1] by the model's scale."""
+    model, dtype, device = up.model, up.dtype, up.device
     scale = model.scale
     h, w, _ = rgb.shape
     src = torch.from_numpy(np.ascontiguousarray(rgb.transpose(2, 0, 1))).unsqueeze(0)
@@ -133,7 +174,7 @@ def tiles_for(path, tile):
     return math.ceil(h / tile) * math.ceil(w / tile)
 
 
-def process(model, dtype, device, src, dst, scale, tile, fix, progress):
+def process(up, src, dst, scale, tile, fix, progress):
     im = Image.open(src)
     alpha = None
     if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
@@ -141,24 +182,43 @@ def process(model, dtype, device, src, dst, scale, tile, fix, progress):
         alpha = im.getchannel("A")
     rgb = np.asarray(im.convert("RGB"), dtype=np.float32) / 255.0
     while True:
+        done = progress.done
         try:
-            out = upscale(model, dtype, device, rgb, tile, progress)
+            out = upscale(up, rgb, tile, progress)
             break
         except torch.cuda.OutOfMemoryError:
+            progress.done = done
+            torch.cuda.empty_cache()
             if tile and tile <= 128:
                 raise
-            torch.cuda.empty_cache()
             tile = 512 if tile <= 0 else tile // 2
             print(f"Out of GPU memory, retrying with {tile}px tiles", flush=True)
+        except GPU_ERRORS as err:
+            progress.done = done
+            if not up.step_down(err):
+                raise
     if fix:
-        out = color_fix(out, rgb, model.scale)
+        out = color_fix(out, rgb, up.model.scale)
     result = Image.fromarray((out * 255.0).round().astype(np.uint8), "RGB")
     target = (rgb.shape[1] * scale, rgb.shape[0] * scale)
-    if scale != model.scale:
+    if scale != up.model.scale:
         result = result.resize(target, Image.LANCZOS)
     if alpha is not None:
         result.putalpha(alpha.resize(result.size, Image.LANCZOS))
     result.save(dst)
+
+
+def explain(err):
+    """A one-line reason for a failure, with what to do where it's known."""
+    msg = str(err).strip().splitlines()[0] if str(err).strip() else type(err).__name__
+    low = msg.lower()
+    if "no kernel image" in low or "not compatible with the current pytorch" in low:
+        return msg + ". This GPU isn't supported by the installed PyTorch build."
+    if isinstance(err, torch.cuda.OutOfMemoryError) or "out of memory" in low:
+        return "The GPU ran out of memory even with small tiles. Try a smaller model or close other GPU apps."
+    if isinstance(err, FileNotFoundError):
+        return f"File not found: {err.filename}"
+    return f"{type(err).__name__}: {msg}"
 
 
 def main():
@@ -173,9 +233,10 @@ def main():
     args = ap.parse_args()
 
     device = pick_device(args.gpu)
-    model, dtype = load_model(args.model, device)
-    scale = args.scale or model.scale
-    print(f"Loaded {model.architecture.name} {model.scale}x on {device}", flush=True)
+    up = Upscaler(args.model, device)
+    scale = args.scale or up.model.scale
+    print(f"Loaded {up.model.architecture.name} {up.model.scale}x on {describe_device(up.device)}, "
+          f"PyTorch {torch.__version__}", flush=True)
 
     if os.path.isdir(args.input):
         os.makedirs(args.output, exist_ok=True)
@@ -185,8 +246,15 @@ def main():
         jobs = [(args.input, args.output)]
     progress = Progress(sum(tiles_for(src, args.tile) for src, _ in jobs))
     for src, dst in jobs:
-        process(model, dtype, device, src, dst, scale, args.tile, not args.no_color_fix, progress)
+        process(up, src, dst, scale, args.tile, not args.no_color_fix, progress)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception as err:  # the last line is what TouchUp shows
+        traceback.print_exc()
+        print(f"Error: {explain(err)}", flush=True)
+        sys.exit(1)

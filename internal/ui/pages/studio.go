@@ -26,12 +26,12 @@ type Studio struct {
 }
 
 // NewStudio creates the studio page.
-func NewStudio(s *store.Store, dragging func() bool) *Studio {
+func NewStudio(s *store.Store, dragging func() bool, errs *components.ErrorDetails) *Studio {
 	return &Studio{
 		s:         s,
 		inspector: NewInspector(s),
-		video:     NewVideoStage(s),
-		audio:     NewAudioStage(s),
+		video:     NewVideoStage(s, errs),
+		audio:     NewAudioStage(s, errs),
 		image:     NewImageStage(s),
 		browse:    theme.PrimaryButton("Choose a file", "folder-open").OnClick(s.OpenDialog),
 		open:      theme.SecondaryButton("Open", "folder-open").OnClick(s.OpenDialog),

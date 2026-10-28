@@ -22,14 +22,20 @@ type AudioStage struct {
 	spectra  *components.CompareView
 	cancel   *giode.ButtonElement
 	dismiss  *giode.ButtonElement
+	details  *giode.ButtonElement
 }
 
 // NewAudioStage creates the stage.
-func NewAudioStage(s *store.Store) *AudioStage {
+func NewAudioStage(s *store.Store, errs *components.ErrorDetails) *AudioStage {
 	a := &AudioStage{s: s, spectra: components.NewCompareView()}
 	a.waveform = components.NewWaveform(func(start, length float64) { s.SetSection(start, length) })
 	a.cancel = theme.GhostButton("Cancel", "x").OnClick(s.CancelPreview)
 	a.dismiss = theme.GhostButton("Dismiss", "").OnClick(s.DismissPreviewError)
+	a.details = theme.GhostButton("Details", "").OnClick(func() {
+		if sess := s.Session; sess != nil {
+			errs.Show("The preview failed", sess.Preview.ErrLog)
+		}
+	})
 	return a
 }
 
@@ -75,7 +81,11 @@ func (a *AudioStage) View() giode.Element {
 
 	children := []giode.Element{picker}
 	if p.Err != "" {
-		children = append(children, components.Banner("triangle-alert", theme.Danger, "The preview failed", p.Err, a.dismiss))
+		actions := []giode.Element{a.dismiss}
+		if p.ErrLog != "" {
+			actions = append([]giode.Element{a.details}, actions...)
+		}
+		children = append(children, components.Banner("triangle-alert", theme.Danger, "The preview failed", p.Err, actions...))
 	}
 	var result giode.Element
 	switch {

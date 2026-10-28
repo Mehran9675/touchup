@@ -8,6 +8,7 @@ import (
 
 	"github.com/mehran9675/giode"
 
+	"github.com/mehran9675/touchup/internal/engine"
 	"github.com/mehran9675/touchup/internal/media"
 	"github.com/mehran9675/touchup/internal/pipeline"
 )
@@ -36,6 +37,7 @@ type Job struct {
 	Status   JobStatus
 	Update   pipeline.Update
 	Err      string
+	ErrLog   string // what the engine printed last, when it failed
 	Created  time.Time
 	Started  time.Time
 	Finished time.Time
@@ -134,7 +136,7 @@ func (s *Store) start(j *Job) {
 			case errors.Is(err, context.Canceled):
 				j.Status = JobCanceled
 			case err != nil:
-				j.Status, j.Err = JobFailed, err.Error()
+				j.Status, j.Err, j.ErrLog = JobFailed, err.Error(), engine.LogOf(err)
 				s.Toasts.Show(giode.ToastError, j.Name+" failed: "+err.Error())
 			default:
 				j.Status = JobDone
@@ -165,7 +167,7 @@ func (s *Store) RetryJob(j *Job) {
 	if !j.Ended() || j.Status == JobDone {
 		return
 	}
-	j.Status, j.Err, j.Update = JobQueued, "", pipeline.Update{}
+	j.Status, j.Err, j.ErrLog, j.Update = JobQueued, "", "", pipeline.Update{}
 	s.pump()
 }
 
