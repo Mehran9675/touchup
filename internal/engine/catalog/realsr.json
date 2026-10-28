@@ -1,0 +1,32 @@
+{
+  "id": "realsr-ncnn",
+  "name": "RealSR",
+  "vendor": "Tencent Youtu Lab",
+  "description": "Real-world super-resolution through kernel estimation. Natural-looking 4x photos without the painted look of heavier GANs.",
+  "homepage": "https://github.com/nihui/realsr-ncnn-vulkan",
+  "license": "MIT",
+  "tags": ["Photo"],
+  "requirements": "Any GPU with Vulkan",
+  "media": ["image", "video"],
+  "input": "image",
+  "batch": true,
+  "install": {
+    "type": "archive",
+    "size": "20 MB",
+    "urls": {
+      "linux": "https://github.com/nihui/realsr-ncnn-vulkan/releases/download/20220728/realsr-ncnn-vulkan-20220728-ubuntu.zip",
+      "windows": "https://github.com/nihui/realsr-ncnn-vulkan/releases/download/20220728/realsr-ncnn-vulkan-20220728-windows.zip",
+      "darwin": "https://github.com/nihui/realsr-ncnn-vulkan/releases/download/20220728/realsr-ncnn-vulkan-20220728-macos.zip"
+    }
+  },
+  "executable": {"windows": "realsr-ncnn-vulkan.exe", "*": "realsr-ncnn-vulkan"},
+  "args": ["-i", "{input}", "-o", "{output}", "-s", "{scale}", "{modelArgs}", "-f", "png"],
+  "gpuArgs": ["-g", "{gpu}"],
+  "outputExt": ".png",
+  "scales": [4],
+  "defaultScale": 4,
+  "models": [
+    {"id": "df2k", "name": "DF2K", "description": "Clean photos.", "args": ["-m", "models-DF2K"]},
+    {"id": "df2k-jpeg", "name": "DF2K · JPEG", "description": "Photos with JPEG artifacts.", "args": ["-m", "models-DF2K_JPEG"]}
+  ]
+}

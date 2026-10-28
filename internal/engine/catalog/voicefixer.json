@@ -1,0 +1,21 @@
+{
+  "id": "voicefixer",
+  "name": "VoiceFixer",
+  "vendor": "Haohe Liu et al.",
+  "description": "Restores degraded speech: noise, reverb, clipping and low sample rates, rebuilt to 44.1 kHz.",
+  "homepage": "https://github.com/haoheliu/voicefixer",
+  "license": "MIT",
+  "tags": ["Speech", "Restoration", "Python"],
+  "requirements": "Python 3.8+ · runs on CPU, faster with an NVIDIA GPU",
+  "media": ["audio"],
+  "input": "audio",
+  "install": {"type": "pip", "packages": ["voicefixer"], "size": "≈3 GB with PyTorch"},
+  "executable": {"*": "voicefixer"},
+  "args": ["--infile", "{input}", "--outfile", "{output}", "{modelArgs}"],
+  "outputExt": ".wav",
+  "models": [
+    {"id": "mode0", "name": "Standard", "description": "The original restoration model.", "args": ["--mode", "0"]},
+    {"id": "mode1", "name": "With preprocessing", "description": "Removes higher frequencies first.", "args": ["--mode", "1"]},
+    {"id": "mode2", "name": "Train mode", "description": "Can help on very degraded audio.", "args": ["--mode", "2"]}
+  ]
+}
