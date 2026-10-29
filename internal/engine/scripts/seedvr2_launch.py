@@ -13,6 +13,7 @@ out its own, which SeedVR2 has no flags for:
     python seedvr2_launch.py src/inference_cli.py video.mp4 --batch_size 21 ...
 """
 
+import inspect
 import os
 import runpy
 import sys
@@ -54,14 +55,19 @@ def patch_vae_memory(gigabytes):
 
     patched = 0
     for cls in vars(attn_video_vae).values():
-        if isinstance(cls, type) and "set_memory_limit" in vars(cls):
-            original = cls.set_memory_limit
+        # Only the VAE's own method, which takes both limits: the module
+        # also imports its convolutions, whose set_memory_limit takes one.
+        if not isinstance(cls, type) or "set_memory_limit" not in vars(cls):
+            continue
+        if "conv_max_mem" not in inspect.signature(vars(cls)["set_memory_limit"]).parameters:
+            continue
+        original = cls.set_memory_limit
 
-            def set_memory_limit(self, conv_max_mem=None, norm_max_mem=None, _original=original):
-                _original(self, conv_max_mem=gigabytes, norm_max_mem=gigabytes)
+        def set_memory_limit(self, conv_max_mem=None, norm_max_mem=None, _original=original):
+            _original(self, conv_max_mem=gigabytes, norm_max_mem=gigabytes)
 
-            cls.set_memory_limit = set_memory_limit
-            patched += 1
+        cls.set_memory_limit = set_memory_limit
+        patched += 1
     if patched:
         print(f"TouchUp: VAE steps may use {gigabytes:g} GB before splitting", flush=True)
 
