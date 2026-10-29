@@ -28,10 +28,14 @@ func (s *Store) RunPreview() {
 	p.Running, p.Err, p.ErrLog, p.cancel = true, "", "", cancel
 	p.Update, p.Started = pipeline.Update{Stage: "Starting", Frac: 0}, time.Now()
 	p.Log.reset()
+	p.Pace.reset()
 	report := func(u pipeline.Update) {
 		s.post(func() {
 			if u.Line != "" {
 				p.Log.add(u.Line)
+			}
+			if u.Frac >= 0 && u.Frac > p.Update.Frac {
+				p.Pace.add(u.Frac)
 			}
 			if u.Frac < 0 {
 				u.Frac = p.Update.Frac

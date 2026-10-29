@@ -93,7 +93,7 @@ func (a *AudioStage) View() giode.Element {
 		result = giode.Box(giode.Styles{Width: -1, Height: -1, Align: giode.AlignCenter, Justify: giode.JustifyCenter},
 			components.ProgressPanel("Previewing "+format.Duration(sess.SelLen)+" of audio",
 				p.Update.Stage, p.Update.Frac, p.Update.Line,
-				components.RunClock(p.Started, p.Log.Last), a.copyLog, a.cancel))
+				components.RunClock(p.Started, p.Log.Last, p.TimeLeft), a.copyLog, a.cancel))
 	case sess.PreviewMatches():
 		result = a.result()
 	case p.Audio != nil:
