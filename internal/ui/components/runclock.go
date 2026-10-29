@@ -16,12 +16,16 @@ import (
 // RunClock says so.
 const quietAfter = 20 * time.Second
 
-// RunClock says how long a run has gone on, and how long since the
-// engine last printed anything once it has been quiet for a while, so a
-// slow run can be told from a stuck one. It ticks every second.
-func RunClock(started, lastOutput time.Time) giode.Element {
+// RunClock says how long a run has gone on, roughly how long it has left
+// once left can tell, and how long since the engine
+// last printed anything once it has been quiet for a while, so a slow
+// run can be told from a stuck one. It ticks every second.
+func RunClock(started, lastOutput time.Time, left func(now time.Time) (time.Duration, bool)) giode.Element {
 	return giode.Raw(func(gtx layout.Context) layout.Dimensions {
 		text := "Running for " + format.Elapsed(gtx.Now.Sub(started))
+		if left, ok := left(gtx.Now); ok {
+			text += " · about " + format.Remaining(left) + " left"
+		}
 		style := theme.Caption()
 		if quiet := gtx.Now.Sub(lastOutput); !lastOutput.IsZero() && quiet >= quietAfter {
 			text += " · no output for " + format.Elapsed(quiet)

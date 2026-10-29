@@ -37,6 +37,7 @@ type Job struct {
 	Status   JobStatus
 	Update   pipeline.Update
 	Log      LiveLog // what the engine has printed so far
+	Pace     Pace
 	Err      string
 	ErrLog   string // what the engine printed last, when it failed
 	Created  time.Time
@@ -111,10 +112,14 @@ func (s *Store) start(j *Job) {
 	j.Status, j.cancel, j.Started = JobRunning, cancel, time.Now()
 	j.Update = pipeline.Update{Stage: "Starting", Frac: 0}
 	j.Log.reset()
+	j.Pace.reset()
 	report := func(u pipeline.Update) {
 		s.post(func() {
 			if u.Line != "" {
 				j.Log.add(u.Line)
+			}
+			if u.Frac >= 0 && u.Frac > j.Update.Frac {
+				j.Pace.add(u.Frac)
 			}
 			if u.Frac < 0 {
 				u.Frac = j.Update.Frac

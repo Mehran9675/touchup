@@ -86,3 +86,13 @@ func Channels(n int) string {
 
 // Elapsed formats how long something took or has been running.
 func Elapsed(d time.Duration) string { return Duration(d.Seconds()) }
+
+// Remaining formats an estimate of the time left, to the minute: "1 min",
+// "45 min", "3h 20m".
+func Remaining(d time.Duration) string {
+	m := max(1, int(d.Round(time.Minute).Minutes()))
+	if m < 60 {
+		return fmt.Sprintf("%d min", m)
+	}
+	return fmt.Sprintf("%dh %02dm", m/60, m%60)
+}

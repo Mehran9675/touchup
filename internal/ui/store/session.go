@@ -51,6 +51,7 @@ type Preview struct {
 	Update  pipeline.Update
 	Started time.Time
 	Log     LiveLog // what the engine has printed so far
+	Pace    Pace
 	Err     string
 	ErrLog  string // what the engine printed last, when it failed
 

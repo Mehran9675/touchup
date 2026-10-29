@@ -90,7 +90,7 @@ func (q *Queue) card(j *store.Job) giode.Element {
 	case store.JobRunning:
 		p.Status, p.Tone = "Running", theme.Primary
 		p.Running, p.Frac, p.Stage, p.Line = true, j.Update.Frac, j.Update.Stage, j.Update.Line
-		p.Clock = components.RunClock(j.Started, j.Log.Last)
+		p.Clock = components.RunClock(j.Started, j.Log.Last, j.TimeLeft)
 		p.Detail = "Saving to " + j.Output
 		p.Actions = []giode.Element{
 			components.CopyAction("job-copy-log", j, "Copy log", func() string {

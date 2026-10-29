@@ -87,7 +87,7 @@ func (v *VideoStage) View() giode.Element {
 	if p.Running {
 		viewer = withOverlay(viewer, centered(components.ProgressPanel(
 			"Previewing "+format.Clock(sess.Time), p.Update.Stage, p.Update.Frac, p.Update.Line,
-			components.RunClock(p.Started, p.Log.Last), v.copyLog, v.cancel)))
+			components.RunClock(p.Started, p.Log.Last, p.TimeLeft), v.copyLog, v.cancel)))
 	}
 
 	v.timeline.Duration = sess.Info.Duration
