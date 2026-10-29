@@ -79,19 +79,20 @@ func installSource(ctx context.Context, m *Manifest, src *Source, report Report)
 }
 
 // runLogged runs a command, passing each output line to report, and
-// returns the tail of its output on failure.
+// returns a RunError with the end of its output on failure.
 func runLogged(ctx context.Context, report Report, stage, name string, args ...string) error {
 	cmd := proc.Command(ctx, name, args...)
 	pr, pw := io.Pipe()
 	cmd.Stdout, cmd.Stderr = pw, pw
-	tail := &tailBuffer{max: 12}
+	tail := &tailBuffer{max: 300}
 	done := make(chan struct{})
 	go func() {
-		proc.Lines(pr, func(line string) {
+		proc.Lines(pr, func(raw string) {
+			line := strings.TrimSpace(raw)
 			if line == "" {
 				return
 			}
-			tail.add(line)
+			tail.add(raw)
 			report(Status{Stage: stage, Frac: -1, Line: line})
 		})
 		close(done)
@@ -103,7 +104,7 @@ func runLogged(ctx context.Context, report Report, stage, name string, args ...s
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		return fmt.Errorf("%s failed: %s", strings.ToLower(stage), tail.String())
+		return &RunError{Engine: stage, Summary: summarize(tail.lines), Log: tail.String()}
 	}
 	return nil
 }

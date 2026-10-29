@@ -8,9 +8,9 @@ import (
 	"github.com/mehran9675/touchup/internal/ui/theme"
 )
 
-// ErrorDetails is a dialog with the whole of an error: what an engine or
-// installer printed last, selectable and with a copy button, for errors
-// too long for a card or banner. One is shared by every page.
+// ErrorDetails is a dialog with the whole of an error: a report with what
+// failed, the setup it ran on and what the engine or installer printed,
+// selectable and with a copy button. One is shared by every page.
 type ErrorDetails struct {
 	title, text string
 	subtitle    string
@@ -27,7 +27,7 @@ type ErrorDetails struct {
 func NewErrorDetails() *ErrorDetails {
 	d := &ErrorDetails{}
 	d.close = theme.SecondaryButton("Close", "").OnClick(func() { d.open = false })
-	d.copy = giode.CopyButton(func() string { return d.text })
+	d.copy = theme.CopyButton("Copy all", func() string { return d.text })
 	// The reason is at the end of a log, so it opens scrolled to the end.
 	d.log = giode.Scroll(func() giode.Element {
 		return giode.Box(giode.Styles{Width: -1, Padding: giode.UniformInset(14)},
@@ -40,9 +40,9 @@ func NewErrorDetails() *ErrorDetails {
 	return d
 }
 
-// Show opens the dialog with a title and the full text of an error.
-func (d *ErrorDetails) Show(title, text string) {
-	d.ShowReport(title, "The last lines it printed. Copy them to report the problem.", text, "triangle-alert", theme.Danger)
+// Show opens the dialog with a title and an error's full report.
+func (d *ErrorDetails) Show(title, report string) {
+	d.ShowReport(title, "The whole error, with what it printed. Copy it to report the problem.", report, "triangle-alert", theme.Danger)
 }
 
 // ShowReport opens the dialog for any long text, such as a diagnostic

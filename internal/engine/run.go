@@ -77,15 +77,16 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 			re = custom
 		}
 	}
-	tail := &tailBuffer{max: 60}
+	tail := &tailBuffer{max: 400}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		proc.Lines(pr, func(line string) {
+		proc.Lines(pr, func(raw string) {
+			line := strings.TrimSpace(raw)
 			if line == "" {
 				return
 			}
-			tail.add(line)
+			tail.add(raw)
 			if j.Log != nil {
 				j.Log(line)
 			}
@@ -200,8 +201,8 @@ func newestOutput(dir, ext string, started time.Time) string {
 	return best
 }
 
-// RunError is an engine that failed: a one-line Summary to show, and the
-// end of what it printed, for a details view.
+// RunError is an engine or install step that failed: a one-line Summary
+// to show, and the end of what it printed, for a details view.
 type RunError struct {
 	Engine  string
 	Summary string

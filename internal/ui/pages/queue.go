@@ -105,11 +105,11 @@ func (q *Queue) card(j *store.Job) giode.Element {
 	case store.JobFailed:
 		p.Status, p.Tone = "Failed", theme.Danger
 		p.Detail = j.Err
-		p.Actions = []giode.Element{button("job-retry", "Try again", "rotate-ccw", false, func() { s.RetryJob(j) })}
-		if j.ErrLog != "" {
-			p.Actions = append([]giode.Element{button("job-details", "Details", "", true, func() {
-				q.errors.Show(j.Name+" failed", j.ErrLog)
-			})}, p.Actions...)
+		report := func() string { return s.ErrorReport(j.Name+" failed", j.Err, j.ErrLog) }
+		p.Actions = []giode.Element{
+			components.CopyAction("job-copy", j, "Copy", report),
+			button("job-details", "Details", "", true, func() { q.errors.Show(j.Name+" failed", report()) }),
+			button("job-retry", "Try again", "rotate-ccw", false, func() { s.RetryJob(j) }),
 		}
 	case store.JobCanceled:
 		p.Status, p.Tone = "Canceled", theme.Muted

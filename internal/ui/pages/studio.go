@@ -21,13 +21,14 @@ type Studio struct {
 	open      *giode.ButtonElement
 	close     *giode.ButtonElement
 	retry     *giode.ButtonElement
+	copyErr   giode.Element
 	// dragging reports whether files are being dragged over the window.
 	dragging func() bool
 }
 
 // NewStudio creates the studio page.
 func NewStudio(s *store.Store, dragging func() bool, errs *components.ErrorDetails) *Studio {
-	return &Studio{
+	st := &Studio{
 		s:         s,
 		inspector: NewInspector(s),
 		video:     NewVideoStage(s, errs),
@@ -35,10 +36,19 @@ func NewStudio(s *store.Store, dragging func() bool, errs *components.ErrorDetai
 		image:     NewImageStage(s),
 		browse:    theme.PrimaryButton("Choose a file", "folder-open").OnClick(s.OpenDialog),
 		open:      theme.SecondaryButton("Open", "folder-open").OnClick(s.OpenDialog),
-		close:     theme.GhostButton("Close", "x").OnClick(s.Close),
-		retry:     theme.SecondaryButton("Choose another file", "folder-open").OnClick(s.OpenDialog),
-		dragging:  dragging,
+		// Closing waits for the frame to end: the inspector and stage are
+		// laid out after this button and still need the session.
+		close:    theme.GhostButton("Close", "x").OnClick(func() { s.App.Post(s.Close) }),
+		retry:    theme.SecondaryButton("Choose another file", "folder-open").OnClick(s.OpenDialog),
+		dragging: dragging,
 	}
+	st.copyErr = theme.CopyButton("Copy", func() string {
+		if sess := s.Session; sess != nil {
+			return s.ErrorReport(sess.Name+" can't be opened", sess.Err, "")
+		}
+		return ""
+	})
+	return st
 }
 
 // View lays out the page.
@@ -54,7 +64,7 @@ func (st *Studio) View() giode.Element {
 	case sess.Loading:
 		stage = components.LoadingState("Reading " + sess.Name + "…")
 	case sess.Err != "":
-		stage = components.EmptyState("triangle-alert", "This file can't be opened", sess.Err, st.retry)
+		stage = components.EmptyState("triangle-alert", "This file can't be opened", sess.Err, st.retry, st.copyErr)
 	case sess.Kind == media.Video:
 		stage = st.video.View()
 	case sess.Kind == media.Audio:
@@ -111,4 +121,14 @@ func (st *Studio) header() giode.Element {
 		),
 		st.open, st.close,
 	)
+}
+
+// previewReport is the full report of the session's failed preview.
+func previewReport(s *store.Store) string {
+	sess := s.Session
+	if sess == nil {
+		return ""
+	}
+	p := sess.Preview
+	return s.ErrorReport("The preview of "+sess.Name+" failed", p.Err, p.ErrLog)
 }

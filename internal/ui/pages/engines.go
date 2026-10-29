@@ -160,13 +160,16 @@ func (e *Engines) footer(m *engine.Manifest) giode.Element {
 		// happened and Details shows the rest.
 		return row(
 			theme.Icon("triangle-alert", 16, theme.Danger),
-			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text("Install failed", theme.Label().With(giode.Styles{
-				FontSize: 12.5, Color: theme.Danger,
+			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text("Failed", theme.Label().With(giode.Styles{
+				FontSize: 12.5, Color: theme.Danger, MaxLines: 1, TextOverflow: giode.TextOverflowEllipsis,
 			}))),
-			action("engine-details", "Details", "", theme.GhostButton, func() {
-				e.errors.Show("Couldn't install "+m.Name, in.Err)
+			components.CopyAction("engine-copy", m.ID, "", func() string {
+				return s.ErrorReport("Couldn't install "+m.Name, in.Err, in.Log)
 			}),
-			action("engine-retry", "Try again", "refresh-cw", theme.SecondaryButton, func() { s.InstallEngine(m) }),
+			action("engine-details", "Details", "", theme.GhostButton, func() {
+				e.errors.Show("Couldn't install "+m.Name, s.ErrorReport("Couldn't install "+m.Name, in.Err, in.Log))
+			}),
+			action("engine-retry", "Retry", "refresh-cw", theme.SecondaryButton, func() { s.InstallEngine(m) }),
 		)
 	case s.Installed(m.ID):
 		uninstall := giode.Element(giode.Box(giode.Styles{}))
@@ -314,6 +317,9 @@ func (e *Engines) modelRow(m *engine.Manifest, mdl *engine.Model, engineInstalle
 			func() { s.CancelModelInstall(m, mdl) })
 	case in != nil && in.Err != "":
 		p.Err = in.Err
+		p.Copy = components.CopyAction("model-copy", key, "", func() string {
+			return s.ErrorReport("Couldn't download "+mdl.Name+" for "+m.Name, in.Err, in.Log)
+		})
 		p.Action = components.Action("model-retry", key, func() *giode.ButtonElement { return theme.SecondaryButton("Retry", "rotate-ccw") },
 			func() { s.DismissModelError(m, mdl); s.InstallModel(m, mdl) })
 	case s.ModelInstalled(m, mdl):

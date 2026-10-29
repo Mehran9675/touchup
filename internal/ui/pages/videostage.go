@@ -22,6 +22,7 @@ type VideoStage struct {
 	cancel   *giode.ButtonElement
 	dismiss  *giode.ButtonElement
 	details  *giode.ButtonElement
+	copy     giode.Element
 }
 
 // NewVideoStage creates the stage.
@@ -43,9 +44,10 @@ func NewVideoStage(s *store.Store, errs *components.ErrorDetails) *VideoStage {
 	v.dismiss = theme.GhostButton("Dismiss", "").OnClick(s.DismissPreviewError)
 	v.details = theme.GhostButton("Details", "").OnClick(func() {
 		if sess := s.Session; sess != nil {
-			errs.Show("The preview failed", sess.Preview.ErrLog)
+			errs.Show("The preview failed", previewReport(s))
 		}
 	})
+	v.copy = theme.CopyButton("Copy", func() string { return previewReport(s) })
 	return v
 }
 
@@ -107,11 +109,7 @@ func (v *VideoStage) View() giode.Element {
 
 	children := []giode.Element{giode.Box(giode.Styles{Width: -1, FlexGrow: 1, MinHeight: 260}, viewer)}
 	if p.Err != "" {
-		actions := []giode.Element{v.dismiss}
-		if p.ErrLog != "" {
-			actions = append([]giode.Element{v.details}, actions...)
-		}
-		children = append(children, components.Banner("triangle-alert", theme.Danger, "The preview failed", p.Err, actions...))
+		children = append(children, components.Banner("triangle-alert", theme.Danger, "The preview failed", p.Err, v.copy, v.details, v.dismiss))
 	}
 	children = append(children, controls, v.timeline)
 	return giode.Stack(giode.Styles{Width: -1, Height: -1, Gap: 14}, children...)

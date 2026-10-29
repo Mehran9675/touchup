@@ -25,6 +25,9 @@ before/after comparisons. Nothing is uploaded.
 - **Images go straight to the queue.** No preview step.
 - **Queue.** Jobs run one at a time, with live progress, the engine's latest output, cancel and
   retry.
+- **Errors you can report.** Every failure, from a preview, a job, an engine install or a model
+  download, has a Copy button. It copies the whole report: what failed, the TouchUp version,
+  system, GPU setting and Python, and everything the engine or installer printed.
 - **Output control.** PNG/JPEG/WebP, H.264/H.265/ProRes with a quality setting, WAV/FLAC/MP3,
   GPU selection, and a custom output folder.
 - Dark and light themes, file drop, and "Open with TouchUp" on every desktop.
