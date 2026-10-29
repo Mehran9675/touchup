@@ -14,6 +14,8 @@ import math
 import os
 import sys
 import traceback
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import torch
@@ -74,14 +76,20 @@ class Upscaler:
     models that build tensors as they run, such as the attention masks of
     DRCT, ATD, HAT and SwinIR, which are float32 whatever the weights are."""
 
-    def __init__(self, path, device):
+    def __init__(self, path, device, precision="auto"):
         self.model = spandrel.ModelLoader(device=torch.device("cpu")).load_from_file(path)
         if not isinstance(self.model, spandrel.ImageModelDescriptor):
             raise ValueError(f"{os.path.basename(path)} is not an image upscaling model")
         self.model.eval()
-        self.place(device, self.best_dtype(device))
+        self.place(device, self.best_dtype(device, precision))
 
-    def best_dtype(self, device):
+    def best_dtype(self, device, precision="auto"):
+        if device.type != "cuda" or precision == "full":
+            return torch.float32
+        if precision == "half":
+            return torch.float16
+        if precision == "bfloat16":
+            return torch.bfloat16
         if device.type == "cuda":
             if self.model.supports_half:
                 return torch.float16
@@ -190,26 +198,47 @@ def color_fix(out, rgb, scale):
     return fixed.squeeze(0).permute(1, 2, 0).numpy()
 
 
-def tiles_for(path, tile):
-    with Image.open(path) as im:
-        w, h = im.size
+def tiles_for(size, tile):
+    w, h = size
     if tile <= 0:
         return 1
     return math.ceil(h / tile) * math.ceil(w / tile)
 
 
-def process(up, src, dst, scale, tile, fix, progress):
-    im = Image.open(src)
-    alpha = None
-    if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
-        im = im.convert("RGBA")
-        alpha = im.getchannel("A")
-    rgb = np.asarray(im.convert("RGB"), dtype=np.float32) / 255.0
+def load(path):
+    """Reads an image as an HxWx3 float32 array in [0, 1], and its alpha
+    channel when it has one."""
+    with Image.open(path) as im:
+        alpha = None
+        if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
+            im = im.convert("RGBA")
+            alpha = im.getchannel("A")
+        return np.asarray(im.convert("RGB"), dtype=np.float32) / 255.0, alpha
+
+
+def finish(out, rgb, alpha, up, scale, fix, dst):
+    """Color-fixes, resizes and saves one result. Runs on a worker thread
+    while the GPU moves on to the next frame."""
+    if fix:
+        out = color_fix(out, rgb, up.model.scale)
+    result = Image.fromarray((out * 255.0).round().astype(np.uint8), "RGB")
+    target = (rgb.shape[1] * scale, rgb.shape[0] * scale)
+    if scale != up.model.scale:
+        result = result.resize(target, Image.LANCZOS)
+    if alpha is not None:
+        result.putalpha(alpha.resize(result.size, Image.LANCZOS))
+    # Light compression: frames are read once more and thrown away, and
+    # the default level takes longer than many models.
+    result.save(dst, compress_level=1)
+
+
+def upscale_safely(up, rgb, tile, progress):
+    """upscale, retrying with smaller tiles when the GPU runs out of
+    memory and with safer settings when it fails."""
     while True:
         done = progress.done
         try:
-            out = upscale(up, rgb, tile, progress)
-            break
+            return upscale(up, rgb, tile, progress)
         except torch.cuda.OutOfMemoryError:
             progress.done = done
             torch.cuda.empty_cache()
@@ -221,15 +250,93 @@ def process(up, src, dst, scale, tile, fix, progress):
             progress.done = done
             if not up.step_down(err):
                 raise
-    if fix:
-        out = color_fix(out, rgb, up.model.scale)
-    result = Image.fromarray((out * 255.0).round().astype(np.uint8), "RGB")
-    target = (rgb.shape[1] * scale, rgb.shape[0] * scale)
-    if scale != up.model.scale:
-        result = result.resize(target, Image.LANCZOS)
-    if alpha is not None:
-        result.putalpha(alpha.resize(result.size, Image.LANCZOS))
-    result.save(dst)
+
+
+@torch.inference_mode()
+def upscale_batch(up, frames):
+    """Upscales same-sized frames that each fit in one tile in a single
+    pass, which keeps the GPU busy with small, fast models."""
+    model = up.model
+    scale = model.scale
+    h, w, _ = frames[0].shape
+    src = torch.from_numpy(np.ascontiguousarray(np.stack(frames).transpose(0, 3, 1, 2)))
+    autocast = torch.autocast(up.device.type, dtype=up.dtype, enabled=up.dtype != torch.float32)
+    with autocast:
+        res = model(pad_to(src.to(device=up.device), model.size_requirements))
+    res = res[:, :, : h * scale, : w * scale]
+    if not torch.isfinite(res).all():
+        raise FloatingPointError(f"the model's output overflowed in {up.precision()}")
+    return list(res.float().clamp_(0, 1).permute(0, 2, 3, 1).cpu().numpy())
+
+
+class Prefetch:
+    """Loads images ahead on a worker thread, keeping a few ready."""
+
+    def __init__(self, paths, ahead):
+        self.pool = ThreadPoolExecutor(max_workers=2)
+        self.paths, self.ahead = paths, ahead
+        self.pending = deque(self.pool.submit(load, p) for p in paths[:ahead])
+        self.next = ahead
+
+    def get(self):
+        item = self.pending.popleft().result()
+        if self.next < len(self.paths):
+            self.pending.append(self.pool.submit(load, self.paths[self.next]))
+            self.next += 1
+        return item
+
+
+def run(up, jobs, scale, tile, fix, batch, progress):
+    """Upscales every (source, destination) pair. Frames that fit in one
+    tile go through the model batch at a time; loading and saving happen
+    on worker threads alongside."""
+    loader = Prefetch([src for src, _ in jobs], max(2, batch * 2))
+    saver = ThreadPoolExecutor(max_workers=max(2, min(8, os.cpu_count() or 2)))
+    saving = deque()
+
+    def save(*args):
+        saving.append(saver.submit(finish, *args))
+        while len(saving) > batch * 4:  # bounded, so memory stays flat
+            saving.popleft().result()
+
+    i, carry = 0, None
+    while i < len(jobs) or carry:
+        if carry:
+            group, carry = [carry], None
+        else:
+            group = [(*loader.get(), jobs[i][1])]
+            i += 1
+        shape = group[0][0].shape
+        whole = tile <= 0 or max(shape[:2]) <= tile
+        while whole and batch > 1 and len(group) < batch and i < len(jobs):
+            item = (*loader.get(), jobs[i][1])
+            i += 1
+            if item[0].shape != shape:  # a different size starts the next group
+                carry = item
+                break
+            group.append(item)
+        if len(group) > 1:
+            try:
+                outs = upscale_batch(up, [r for r, _, _ in group])
+                for _ in group:
+                    progress.step()
+            except torch.cuda.OutOfMemoryError:
+                torch.cuda.empty_cache()
+                batch = max(1, len(group) // 2)
+                print(f"Out of GPU memory, retrying with batches of {batch}", flush=True)
+                outs = [upscale_safely(up, r, tile, progress) for r, _, _ in group]
+            except GPU_ERRORS as err:
+                if not up.step_down(err):
+                    raise
+                outs = [upscale_safely(up, r, tile, progress) for r, _, _ in group]
+        else:
+            outs = [upscale_safely(up, group[0][0], tile, progress)]
+        for out, (r, a, d) in zip(outs, group):
+            save(out, r, a, up, scale, fix, d)
+    for f in saving:
+        f.result()
+    saver.shutdown()
+    loader.pool.shutdown()
 
 
 def explain(err):
@@ -254,14 +361,18 @@ def main():
     ap.add_argument("--tile", type=int, default=512, help="tile size in pixels; 0 for none")
     ap.add_argument("--gpu", type=int, default=-1)
     ap.add_argument("--no-color-fix", action="store_true", help="keep the model's own colors")
+    ap.add_argument("--batch", type=int, default=1, help="frames per pass, for frames that fit in one tile")
+    ap.add_argument("--precision", choices=["auto", "half", "bfloat16", "full"], default="auto")
     args = ap.parse_args()
 
     device = pick_device(args.gpu)
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = True  # video frames share a size: tune once
     if not supports(device):
         print(f"This PyTorch (CUDA {torch.version.cuda}) has no kernels for {describe_device(device)}; "
               "running on the CPU. Reinstall the engine to get a PyTorch for this GPU.", flush=True)
         device = torch.device("cpu")
-    up = Upscaler(args.model, device)
+    up = Upscaler(args.model, device, args.precision)
     scale = args.scale or up.model.scale
     print(f"Loaded {up.model.architecture.name} {up.model.scale}x on {describe_device(up.device)} "
           f"in {up.precision()}, PyTorch {torch.__version__}", flush=True)
@@ -272,9 +383,13 @@ def main():
         jobs = [(os.path.join(args.input, n), os.path.join(args.output, os.path.splitext(n)[0] + ".png")) for n in names]
     else:
         jobs = [(args.input, args.output)]
-    progress = Progress(sum(tiles_for(src, args.tile) for src, _ in jobs))
-    for src, dst in jobs:
-        process(up, src, dst, scale, args.tile, not args.no_color_fix, progress)
+    if not jobs:
+        return
+    # Video frames all share a size; reading every header would be slow.
+    with Image.open(jobs[0][0]) as im:
+        first = im.size
+    progress = Progress(len(jobs) * tiles_for(first, args.tile))
+    run(up, jobs, scale, args.tile, not args.no_color_fix, max(1, args.batch), progress)
 
 
 if __name__ == "__main__":

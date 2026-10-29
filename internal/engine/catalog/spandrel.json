@@ -6,49 +6,24 @@
   "description": "Runs the strongest community image models (DRCT, DAT, ATD, RealPLKSR, SwinIR, Real-ESRGAN) on your GPU. Install only the models you want.",
   "homepage": "https://github.com/chaiNNer-org/spandrel",
   "license": "MIT · models vary",
-  "tags": [
-    "Transformer",
-    "GAN",
-    "Photo",
-    "Anime",
-    "PyTorch"
-  ],
+  "tags": ["Transformer", "GAN", "Photo", "Anime", "PyTorch"],
   "requirements": "Python 3.10+ · NVIDIA GPU recommended; Apple Silicon and CPU work, slowly",
-  "media": [
-    "image",
-    "video"
-  ],
+  "media": ["image", "video"],
   "input": "image",
   "batch": true,
   "install": {
     "type": "pip",
     "size": "≈ 3 GB with PyTorch, plus models",
-    "scripts": [
-      "spandrel_runner.py"
-    ],
+    "scripts": ["spandrel_runner.py"],
     "pip": [
       {
-        "args": [
-          "torch>=2.7",
-          "torchvision"
-        ],
-        "indexURL": {
-          "windows": "https://download.pytorch.org/whl/cu128"
-        }
+        "args": ["torch>=2.7", "torchvision"],
+        "indexURL": {"windows": "https://download.pytorch.org/whl/cu128"}
       },
-      {
-        "args": [
-          "spandrel",
-          "spandrel_extra_arches",
-          "pillow",
-          "numpy"
-        ]
-      }
+      {"args": ["spandrel", "spandrel_extra_arches", "pillow", "numpy"]}
     ]
   },
-  "executable": {
-    "*": "python"
-  },
+  "executable": {"*": "python"},
   "args": [
     "{engineDir}/spandrel_runner.py",
     "--model",
@@ -58,20 +33,11 @@
     "--output",
     "{output}",
     "--scale",
-    "{scale}",
-    "--tile",
-    "512"
+    "{scale}"
   ],
-  "gpuArgs": [
-    "--gpu",
-    "{gpu}"
-  ],
+  "gpuArgs": ["--gpu", "{gpu}"],
   "outputExt": ".png",
-  "scales": [
-    2,
-    3,
-    4
-  ],
+  "scales": [2, 3, 4],
   "defaultScale": 4,
   "models": [
     {
@@ -79,11 +45,7 @@
       "name": "DRCT-L · Best detail",
       "description": "The highest-quality model here: a large transformer for photos with light blur, noise or compression. Slow.",
       "size": "243 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/Phhofm/models/releases/download/4xNomos2_hq_drct-l/4xNomos2_hq_drct-l.pth",
@@ -98,11 +60,7 @@
       "name": "DAT · Photos",
       "description": "Natural, faithful detail for real photos, including noisy and blurry ones.",
       "size": "155 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/Phhofm/models/releases/download/4xNomos8kDAT/4xNomos8kDAT.pth",
@@ -116,11 +74,7 @@
       "name": "ATD · Photos, balanced",
       "description": "Close to DRCT quality at about half the size.",
       "size": "82 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/Phhofm/models/releases/download/4xNomos2_hq_atd/4xNomos2_hq_atd.pth",
@@ -134,11 +88,7 @@
       "name": "DAT2 · Web and social photos",
       "description": "For photos that were downscaled and recompressed by websites and messengers.",
       "size": "140 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/Phhofm/models/releases/download/4xRealWebPhoto_v4_dat2/4xRealWebPhoto_v4_dat2.pth",
@@ -152,11 +102,7 @@
       "name": "RealPLKSR · Fast photos",
       "description": "Quick with good quality: the best choice for long videos.",
       "size": "30 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/Phhofm/models/releases/download/4xNomos2_realplksr_dysample/4xNomos2_realplksr_dysample.pth",
@@ -171,11 +117,7 @@
       "name": "RealPLKSR · Fast web photos",
       "description": "The fast model for compressed photos and video.",
       "size": "30 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/Phhofm/models/releases/download/4xNomosWebPhoto_RealPLKSR/4xNomosWebPhoto_RealPLKSR.pth",
@@ -189,11 +131,7 @@
       "name": "SwinIR-L · Real-world",
       "description": "A proven transformer for heavily degraded photos.",
       "size": "142 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth",
@@ -207,11 +145,7 @@
       "name": "Real-ESRGAN x4plus",
       "description": "The classic all-rounder: strong cleanup of blur, noise and JPEG artifacts.",
       "size": "67 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
@@ -225,9 +159,7 @@
       "name": "Real-ESRGAN x2plus",
       "description": "Real-ESRGAN trained for 2x, for sources that are only a little small.",
       "size": "67 MB",
-      "scales": [
-        2
-      ],
+      "scales": [2],
       "files": [
         {
           "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth",
@@ -241,11 +173,7 @@
       "name": "Real-ESRGAN General v3 · Tiny",
       "description": "A 5 MB model that runs fast even on modest GPUs.",
       "size": "5 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
@@ -259,9 +187,7 @@
       "name": "AI-generated images",
       "description": "Trained on Stable Diffusion images: sharpens generated art without inventing noise.",
       "size": "34 MB",
-      "scales": [
-        2
-      ],
+      "scales": [2],
       "files": [
         {
           "url": "https://github.com/Phhofm/models/releases/download/2xLexicaRRDBNet/2xLexicaRRDBNet.pth",
@@ -275,9 +201,7 @@
       "name": "AnimeSharp V4 · Anime",
       "description": "Crisp lines and clean flats for anime and cartoons.",
       "size": "31 MB",
-      "scales": [
-        2
-      ],
+      "scales": [2],
       "files": [
         {
           "url": "https://github.com/Kim2091/Kim2091-Models/releases/download/2x-AnimeSharpV4/2x-AnimeSharpV4_RCAN.safetensors",
@@ -291,11 +215,7 @@
       "name": "Real-ESRGAN Anime",
       "description": "Real-ESRGAN tuned for illustrations and anime stills.",
       "size": "18 MB",
-      "scales": [
-        2,
-        3,
-        4
-      ],
+      "scales": [2, 3, 4],
       "files": [
         {
           "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth",
@@ -303,6 +223,62 @@
           "sha256": "f872d837d3c90ed2e05227bed711af5671a6fd1c9f7d7e91c911a61f155e99da"
         }
       ]
+    }
+  ],
+  "options": [
+    {
+      "id": "tile",
+      "name": "Tile size",
+      "type": "choice",
+      "default": "768",
+      "description": "Pictures larger than this are upscaled in overlapping tiles. Bigger is faster and lets whole video frames go in batches, but needs more GPU memory; when it runs out, TouchUp halves the tiles and carries on.",
+      "choices": [
+        {"value": "256", "label": "256 px"},
+        {"value": "384", "label": "384 px"},
+        {"value": "512", "label": "512 px"},
+        {"value": "768", "label": "768 px"},
+        {"value": "1024", "label": "1024 px"},
+        {"value": "1536", "label": "1536 px"},
+        {"value": "0", "label": "Whole picture"}
+      ],
+      "args": ["--tile", "{value}"]
+    },
+    {
+      "id": "batch",
+      "name": "Frames per pass",
+      "type": "choice",
+      "default": "4",
+      "description": "Video frames that fit in one tile go through the model this many at a time, which keeps the GPU busy with small, fast models. Halves itself when the GPU runs out of memory.",
+      "choices": [
+        {"value": "1", "label": "1"},
+        {"value": "2", "label": "2"},
+        {"value": "4", "label": "4"},
+        {"value": "8", "label": "8"},
+        {"value": "16", "label": "16"}
+      ],
+      "args": ["--batch", "{value}"]
+    },
+    {
+      "id": "precision",
+      "name": "Precision",
+      "type": "choice",
+      "default": "auto",
+      "description": "Automatic uses half precision, or bfloat16 for models that overflow in half, and falls back to full precision when the GPU fails.",
+      "choices": [
+        {"value": "auto", "label": "Automatic"},
+        {"value": "half", "label": "Half (fastest)"},
+        {"value": "bfloat16", "label": "bfloat16"},
+        {"value": "full", "label": "Full (slowest)"}
+      ],
+      "args": ["--precision", "{value}"]
+    },
+    {
+      "id": "colorFix",
+      "name": "Keep the original colors",
+      "type": "toggle",
+      "default": "true",
+      "description": "Take colors from the original and detail from the model, for models that drift on saturated hues.",
+      "argsOff": ["--no-color-fix"]
     }
   ]
 }

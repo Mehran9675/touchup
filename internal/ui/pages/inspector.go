@@ -30,11 +30,20 @@ type Inspector struct {
 	run     *giode.ButtonElement
 	browse  *giode.ButtonElement
 	models  *giode.ButtonElement
+	options *components.EngineSettings
+	adjust  *giode.ButtonElement
 }
 
 // NewInspector creates the inspector.
-func NewInspector(s *store.Store) *Inspector {
-	in := &Inspector{s: s}
+func NewInspector(s *store.Store, options *components.EngineSettings) *Inspector {
+	in := &Inspector{s: s, options: options}
+	in.adjust = theme.SecondaryButton("Adjust", "sliders-horizontal").OnClick(func() {
+		if sess := s.Session; sess != nil {
+			if sel := s.Selected(sess.Kind); sel.Engine != nil {
+				options.Show(sel.Engine)
+			}
+		}
+	})
 	wide := giode.Styles{Width: -1, Padding: giode.SymmetricInset(16, 12)}
 	in.preview = giode.Button("Preview", theme.SecondaryStyle().With(wide)).OnClick(s.RunPreview).
 		Icon(giode.Icon("scan-eye", giode.Styles{Width: 16, Height: 16}))
@@ -176,9 +185,35 @@ func (in *Inspector) content() giode.Element {
 			}
 			sections = append(sections, giode.Stack(giode.Styles{Gap: 10, Width: -1}, group...))
 		}
+		if len(sel.Engine.Options) > 0 {
+			sections = append(sections, in.engineSettings(sel.Engine))
+		}
 		sections = append(sections, in.output(sel))
 	}
 	return giode.Stack(giode.Styles{Width: -1, Gap: 26, Padding: giode.UniformInset(18)}, sections...)
+}
+
+// engineSettings summarizes the engine's options, with a button to
+// change them.
+func (in *Inspector) engineSettings(m *engine.Manifest) giode.Element {
+	values := in.s.EngineOptions(m)
+	var changed []string
+	for i := range m.Options {
+		if o := &m.Options[i]; values[o.ID] != o.Default {
+			changed = append(changed, o.Name+": "+o.Label(values[o.ID]))
+		}
+	}
+	summary := "Defaults, tuned for most GPUs"
+	if len(changed) > 0 {
+		summary = strings.Join(changed, " · ")
+	}
+	return giode.Stack(giode.Styles{Gap: 10, Width: -1},
+		components.SectionLabel("Engine settings"),
+		giode.Row(giode.Styles{Width: -1, Gap: 12, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
+			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(summary, theme.Caption().With(giode.Styles{MaxLines: 3, TextOverflow: giode.TextOverflowEllipsis}))),
+			in.adjust,
+		),
+	)
 }
 
 // longVideoFrames is the length, about a minute and a half, past which

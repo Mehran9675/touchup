@@ -13,7 +13,10 @@ const framePattern = "%08d"
 // keeping the source's timing so frames line up with the audio again.
 func (t Tools) SplitFrames(ctx context.Context, path, dir string, duration float64, onProgress Progress) error {
 	return t.ffmpeg(ctx, duration, onProgress, "-i", path, "-map", "0:v:0",
-		"-fps_mode", "passthrough", "-pix_fmt", "rgb24", filepath.Join(dir, framePattern+".png"))
+		"-fps_mode", "passthrough", "-pix_fmt", "rgb24",
+		// Light compression: frames are read once and deleted, and the
+		// default level takes longer than fast engines do.
+		"-compression_level", "1", filepath.Join(dir, framePattern+".png"))
 }
 
 // JoinOptions controls how frames are encoded back into a video.

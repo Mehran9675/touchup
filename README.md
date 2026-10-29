@@ -34,6 +34,13 @@ before/after comparisons. Nothing is uploaded.
 - **Errors you can report.** Every failure, from a preview, a job, an engine install or a model
   download, has a Copy button. It copies the whole report: what failed, the TouchUp version,
   system, GPU setting and Python, and everything the engine or installer printed.
+- **Engine settings.** Engines list what can be tuned: tile sizes for small GPUs, frames per
+  batch, precision, threads, model offloading, diffusion steps. Change them from the engine card
+  or the studio's **Adjust** button; each says what it does and what its default is.
+- **GPU memory that stays on the GPU.** By default, Python engines stop with "out of memory" when
+  the GPU is full instead of spilling into system memory, which Windows drivers allow and which
+  is often ten times slower or worse. **Settings → Use system memory when the GPU is full** turns
+  spilling back on.
 - **Output control.** PNG/JPEG/WebP, H.264/H.265/ProRes with a quality setting, WAV/FLAC/MP3,
   GPU selection, and a custom output folder.
 - Dark and light themes, file drop, and "Open with TouchUp" on every desktop.
@@ -60,7 +67,9 @@ The strongest engines are listed first.
 | [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) | Audio | Real-time speech denoising | Python |
 
 PyTorch SR runs every model through `spandrel_runner.py`, a script TouchUp ships into the
-engine's folder. It tiles large images to fit in GPU memory, keeps transparency, scales 4x models
+engine's folder. It tiles large images to fit in GPU memory, puts video frames that fit in one tile
+through the model several at a time, loads and saves frames on worker threads while the GPU works,
+keeps transparency, scales 4x models
 down to 2x or 3x when asked, and by default restores the original's colors where a model drifts
 on saturated hues (`--no-color-fix` turns that off in a custom manifest). On an NVIDIA GPU it runs
 in half precision, or in bfloat16 for models that overflow in half (DRCT, DAT, ATD, HAT, SwinIR),
@@ -69,6 +78,18 @@ for the installed PyTorch, or output that overflows), it retries in full precisi
 CPU, and a failure ends with one `Error:` line that TouchUp shows. Installed PyTorch engines have a
 **Check GPU** button that reports the PyTorch and CUDA versions, the GPU and its compute
 capability, and whether a small test runs on it in full and half precision.
+
+SeedVR2 runs through `seedvr2_launch.py`, which rounds its chunks of video to whole batches, lets
+its VAE use more memory per step than SeedVR2's 0.5 GB when there's room, and can turn on cuDNN's
+kernel tuning. SeedVR2 can't split a picture, so TouchUp upscales pictures over 2048 pixels a side
+(an engine setting) in overlapping parts and joins them with feathered seams.
+
+Diffusion models like SeedVR2 take seconds per frame on any home GPU, so a TV episode takes many
+hours; TouchUp warns before such a job. For whole episodes, PyTorch SR with RealPLKSR or Real-ESRGAN
+General v3 is many times faster.
+
+The GPU memory limit comes from `sitecustomize.py`, which TouchUp puts on `PYTHONPATH` for Python
+engines. When the engine starts CUDA, it caps PyTorch at the memory free at that moment.
 
 Engines are installed per user into `~/.local/share/TouchUp/engines` (Linux),
 `~/Library/Application Support/TouchUp/engines` (macOS) or `%LOCALAPPDATA%\TouchUp\engines`
@@ -153,6 +174,7 @@ manifest and use **Import manifest**. This one is the built-in Real-CUGAN, sligh
 | `inputRate`, `imageOutputExt` | The sample rate an audio engine needs, and what a video engine writes when given an image. |
 | `outputExt` | The extension the program writes. When it picks its own file name, TouchUp takes the newest such file in `{outputDir}`. |
 | `progress` | Optional regular expression whose first group is a percentage in the program's output (default: `N%`). |
+| `options` | Settings shown on the engine card: `id`, `name`, `description`, `type` (`choice` with `choices` of `value` and `label`, `number` with optional `min` and `max`, or `toggle`), `default`, and `args` with `{value}` (for a toggle, `args` when on and `argsOff` when off). The option `touchup.tileImage` (output pixels a side, `0` for never) makes TouchUp split large pictures for the engine. |
 | `progressSteps` | For programs that count parts instead: regular expressions, outermost first, whose two groups are a part's number and the total, such as `"Chunk (\\d+)/(\\d+)"` and `"batch (\\d+)/(\\d+)"`. |
 
 Custom manifests are stored next to the installed engines, in `custom-engines/`.

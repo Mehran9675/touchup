@@ -19,9 +19,11 @@ type Options struct {
 	Scale  int
 	// Target is the short side of the result in pixels, such as 2160 for
 	// 4K, or 0 to let Scale decide the size.
-	Target   int
-	Settings settings.Settings
-	Tools    media.Tools
+	Target int
+	// EngineOptions are the engine's option values, from OptionValues.
+	EngineOptions map[string]string
+	Settings      settings.Settings
+	Tools         media.Tools
 }
 
 // Update reports a job's progress.
@@ -66,6 +68,7 @@ func (o Options) job(in, out, inDir, outDir string, report Reporter, stage strin
 	return engine.Job{
 		PathDirs: path,
 		Model:    o.Model, Scale: o.Scale, GPU: o.Settings.GPU,
+		Options: o.EngineOptions, StrictGPUMemory: !o.Settings.AllowSystemMemory,
 		Input: in, Output: out, InputDir: inDir, OutputDir: outDir,
 		Progress: func(f float64) { report(Update{Stage: stage, Frac: from + (to-from)*f}) },
 		Log:      func(line string) { report(Update{Stage: stage, Frac: -1, Line: line}) },

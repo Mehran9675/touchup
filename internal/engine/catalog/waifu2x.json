@@ -29,5 +29,45 @@
     {"id": "cunet", "name": "CUNet · Art", "description": "Best quality for illustrations.", "args": ["-m", "models-cunet", "-n", "1"]},
     {"id": "upconv-anime", "name": "UpConv · Anime", "description": "Faster, for anime-style art.", "args": ["-m", "models-upconv_7_anime_style_art_rgb", "-n", "1"]},
     {"id": "upconv-photo", "name": "UpConv · Photo", "description": "Light upscaling for photos.", "args": ["-m", "models-upconv_7_photo", "-n", "1"]}
+  ],
+  "options": [
+    {
+      "id": "tile",
+      "name": "Tile size",
+      "type": "choice",
+      "default": "0",
+      "description": "Pictures are upscaled in tiles of this size. Automatic picks one from the GPU's memory; smaller tiles fit small GPUs, bigger ones are faster.",
+      "choices": [
+        {"value": "0", "label": "Automatic"},
+        {"value": "32", "label": "32 px"},
+        {"value": "64", "label": "64 px"},
+        {"value": "128", "label": "128 px"},
+        {"value": "256", "label": "256 px"},
+        {"value": "512", "label": "512 px"}
+      ],
+      "args": ["-t", "{value}"]
+    },
+    {
+      "id": "threads",
+      "name": "Threads",
+      "type": "choice",
+      "default": "1:2:2",
+      "description": "Threads that load, upscale and save frames. More keep the GPU busy on fast GPUs when TouchUp feeds it a whole video.",
+      "choices": [
+        {"value": "1:2:2", "label": "1 · 2 · 2 (light)"},
+        {"value": "2:2:4", "label": "2 · 2 · 4"},
+        {"value": "2:4:4", "label": "2 · 4 · 4"},
+        {"value": "4:4:8", "label": "4 · 4 · 8 (fast GPUs)"}
+      ],
+      "args": ["-j", "{value}"]
+    },
+    {
+      "id": "tta",
+      "name": "Test-time augmentation",
+      "type": "toggle",
+      "default": "false",
+      "description": "Upscale eight flipped and rotated copies and average them: slightly cleaner, eight times slower.",
+      "args": ["-x"]
+    }
   ]
 }

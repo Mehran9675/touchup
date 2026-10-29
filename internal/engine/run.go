@@ -39,6 +39,14 @@ type Job struct {
 	// PathDirs are put in front of PATH for the engine, so engines that
 	// call FFmpeg themselves find the one TouchUp uses.
 	PathDirs []string
+	// Options are the values of the engine's options, from
+	// OptionValues; missing ones take their defaults.
+	Options map[string]string
+	// StrictGPUMemory keeps Python engines' PyTorch within the GPU's
+	// free memory, so running out fails at once instead of spilling into
+	// system memory, which Windows drivers do and which is many times
+	// slower.
+	StrictGPUMemory bool
 
 	// Progress receives the engine's own percentage, when it prints one.
 	Progress func(frac float64)
@@ -70,6 +78,13 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	if len(j.PathDirs) > 0 {
 		dirs := append(slices.Clone(j.PathDirs), os.Getenv("PATH"))
 		cmd.Env = append(cmd.Env, "PATH="+strings.Join(dirs, string(os.PathListSeparator)))
+	}
+	if m.Install.Type == "pip" {
+		env, err := pythonHooks(j.StrictGPUMemory)
+		if err != nil {
+			return "", fmt.Errorf("preparing %s: %w", m.Name, err)
+		}
+		cmd.Env = append(cmd.Env, env...)
 	}
 	pr, pw := io.Pipe()
 	cmd.Stdout, cmd.Stderr = pw, pw
@@ -162,6 +177,7 @@ func (m *Manifest) Command(j Job) []string {
 		}
 		out = append(out, expand(a))
 	}
+	out = append(out, m.optionArgs(j.Options, expand)...)
 	if j.GPU >= 0 {
 		for _, a := range m.GPUArgs {
 			out = append(out, expand(a))

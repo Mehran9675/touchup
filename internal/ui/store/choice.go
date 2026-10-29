@@ -212,6 +212,7 @@ func (s *Store) options(kind media.Kind) (pipeline.Options, Selection) {
 	sel := s.Selected(kind)
 	return pipeline.Options{
 		Engine: sel.Engine, Model: sel.Model, Scale: sel.Scale, Target: sel.Target,
-		Settings: s.Settings, Tools: s.Tools,
+		EngineOptions: s.EngineOptions(sel.Engine),
+		Settings:      s.Settings, Tools: s.Tools,
 	}, sel
 }

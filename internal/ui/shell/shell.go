@@ -20,6 +20,7 @@ type Shell struct {
 	queue    *pages.Queue
 	settings *pages.Settings
 	errors   *components.ErrorDetails
+	options  *components.EngineSettings
 	bar      *titlebar.TitleBar // nil with the system frame
 }
 
@@ -27,13 +28,15 @@ type Shell struct {
 // frameless.
 func New(s *store.Store, dragging func() bool) *Shell {
 	errs := components.NewErrorDetails()
+	options := components.NewEngineSettings(s)
 	sh := &Shell{
 		s:        s,
-		studio:   pages.NewStudio(s, dragging, errs),
-		engines:  pages.NewEngines(s, errs),
+		studio:   pages.NewStudio(s, dragging, errs, options),
+		engines:  pages.NewEngines(s, errs, options),
 		queue:    pages.NewQueue(s, errs),
 		settings: pages.NewSettings(s),
 		errors:   errs,
+		options:  options,
 	}
 	if CustomFrame() {
 		sh.bar = newTitleBar(s)
@@ -70,14 +73,14 @@ func (sh *Shell) View() giode.Element {
 	// the layout: an open dialog would otherwise take space from the page.
 	// Gio blends in linear light, so the dialog's own scrim barely shows on
 	// the dark theme; a deeper one goes under it.
-	if sh.engines.DialogOpen() || sh.errors.Open() {
+	if sh.engines.DialogOpen() || sh.errors.Open() || sh.options.Open() {
 		root = append(root, giode.Box(giode.Styles{
 			Position: giode.PositionAbsolute,
 			Top:      giode.Flush, Left: giode.Flush, Right: giode.Flush, Bottom: giode.Flush,
 			Background: "#000000A0",
 		}))
 	}
-	for _, o := range append(sh.engines.Overlays(), sh.errors.Dialog()) {
+	for _, o := range append(sh.engines.Overlays(), sh.options.Dialog(), sh.errors.Dialog()) {
 		root = append(root, giode.Box(giode.Styles{
 			Position: giode.PositionAbsolute,
 			Top:      giode.Flush, Left: giode.Flush, Right: giode.Flush, Bottom: giode.Flush,
