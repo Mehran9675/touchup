@@ -38,6 +38,9 @@ func New(s *store.Store, dragging func() bool) *Shell {
 		errors:   errs,
 		options:  options,
 	}
+	s.ShowReport = func(title, subtitle, text string) {
+		errs.ShowReport(title, subtitle, text, "gauge", theme.Success)
+	}
 	if CustomFrame() {
 		sh.bar = newTitleBar(s)
 	}

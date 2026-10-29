@@ -1,6 +1,7 @@
 // Package proc starts child processes the way TouchUp needs them:
-// without a console window on Windows, and with their output split into
-// lines on both \n and \r so progress meters can be followed.
+// without a console window on Windows, killed with their own children
+// when cancelled, and with their output split into lines on both \n and
+// \r so progress meters can be followed.
 package proc
 
 import (
@@ -9,12 +10,19 @@ import (
 	"context"
 	"io"
 	"os/exec"
+	"time"
 )
 
-// Command builds an exec.Cmd that doesn't open a console window.
+// waitDelay is how long a cancelled command's output is waited for
+// after it's killed.
+const waitDelay = 3 * time.Second
+
+// Command builds an exec.Cmd that doesn't open a console window, and
+// that when ctx is done is killed with every process it started.
 func Command(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
-	hideWindow(cmd)
+	platform(cmd)
+	cmd.WaitDelay = waitDelay
 	return cmd
 }
 

@@ -25,6 +25,9 @@ const (
 type Store struct {
 	App    *giode.App
 	Toasts *giode.ToasterElement
+	// ShowReport shows a long text, such as tuning results, in a dialog;
+	// the shell sets it.
+	ShowReport func(title, subtitle, text string)
 
 	Registry *engine.Registry
 	Settings settings.Settings

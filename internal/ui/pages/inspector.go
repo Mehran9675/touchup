@@ -32,11 +32,13 @@ type Inspector struct {
 	models  *giode.ButtonElement
 	options *components.EngineSettings
 	adjust  *giode.ButtonElement
+	tune    *giode.ButtonElement
 }
 
 // NewInspector creates the inspector.
 func NewInspector(s *store.Store, options *components.EngineSettings) *Inspector {
 	in := &Inspector{s: s, options: options}
+	in.tune = theme.SecondaryButton("Find the fastest", "gauge").OnClick(s.RunTune)
 	in.adjust = theme.SecondaryButton("Adjust", "sliders-horizontal").OnClick(func() {
 		if sess := s.Session; sess != nil {
 			if sel := s.Selected(sess.Kind); sel.Engine != nil {
@@ -142,7 +144,7 @@ func (in *Inspector) content() giode.Element {
 	if sel.Ready() && sess.Kind == media.Video && slices.Contains(sel.Engine.Tags, "Diffusion") && sess.Info.Frames > longVideoFrames {
 		sections = append(sections, components.Banner("timer", theme.Warning, "This will take a long time",
 			fmt.Sprintf("%s takes a few seconds per frame, and this video has %s frames: %s on a mid-range GPU. "+
-				"Preview a frame to judge it, or use PyTorch SR for whole episodes; it's many times faster.",
+				"Use Find the fastest below to tune it for this GPU first.",
 				sel.Engine.Name, format.Count(sess.Info.Frames), diffusionTime(sess.Info.Frames))))
 	}
 	if sel.Ready() {
@@ -207,13 +209,24 @@ func (in *Inspector) engineSettings(m *engine.Manifest) giode.Element {
 	if len(changed) > 0 {
 		summary = strings.Join(changed, " · ")
 	}
-	return giode.Stack(giode.Styles{Gap: 10, Width: -1},
+	group := []giode.Element{
 		components.SectionLabel("Engine settings"),
 		giode.Row(giode.Styles{Width: -1, Gap: 12, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
 			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(summary, theme.Caption().With(giode.Styles{MaxLines: 3, TextOverflow: giode.TextOverflowEllipsis}))),
 			in.adjust,
 		),
-	)
+	}
+	if m.Tune != nil && in.s.Session.Kind == media.Video {
+		in.tune.Disabled(!in.s.CanTune())
+		group = append(group,
+			giode.Row(giode.Styles{Width: -1, Gap: 12, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
+				giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(
+					fmt.Sprintf("Time the settings on %g seconds of this video and keep the fastest. Each try takes about as long as upscaling that clip.", m.Tune.Seconds),
+					theme.Caption())),
+				in.tune,
+			))
+	}
+	return giode.Stack(giode.Styles{Gap: 10, Width: -1}, group...)
 }
 
 // longVideoFrames is the length, about a minute and a half, past which

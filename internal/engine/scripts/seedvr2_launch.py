@@ -9,6 +9,9 @@ out its own, which SeedVR2 has no flags for:
                               it's split into pieces (SeedVR2's is 0.5)
     --touchup-cudnn-tune      let cuDNN time its kernels and keep the
                               fastest for these sizes
+    --touchup-plain-conv3d    skip SeedVR2's workaround for a Conv3d
+                              memory bug of PyTorch 2.9 and 2.10, which
+                              calls cuDNN directly with tuning off
 
     python seedvr2_launch.py src/inference_cli.py video.mp4 --batch_size 21 ...
 """
@@ -72,6 +75,13 @@ def patch_vae_memory(gigabytes):
         print(f"TouchUp: VAE steps may use {gigabytes:g} GB before splitting", flush=True)
 
 
+def plain_conv3d():
+    from src.models.video_vae_v3.modules import causal_inflation_lib
+
+    causal_inflation_lib.NVIDIA_CONV3D_MEMORY_BUG_WORKAROUND = False
+    print("TouchUp: Conv3d workaround off", flush=True)
+
+
 def tune_cudnn():
     import torch
 
@@ -96,6 +106,7 @@ def main():
     chunk = take(argv, "--touchup-chunk-frames")
     vae_memory = take(argv, "--touchup-vae-memory")
     tune = take(argv, "--touchup-cudnn-tune", has_value=False)
+    plain = take(argv, "--touchup-plain-conv3d", has_value=False)
 
     if chunk is not None:
         batch = int(arg(argv, "--batch_size", "5"))
@@ -118,6 +129,8 @@ def main():
         tune_cudnn()
     if vae_memory is not None:
         patch_vae_memory(float(vae_memory))
+    if plain:
+        plain_conv3d()
 
     sys.argv = [cli] + argv
     runpy.run_path(cli, run_name="__main__")
