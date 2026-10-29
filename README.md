@@ -19,10 +19,15 @@ before/after comparisons. Nothing is uploaded.
   installed ones.
 - **Video preview on a single frame.** Scrub the timeline to any moment and upscale just that
   frame. A split view with zoom and pan compares the original with the result before you
-  commit to the whole video.
+  commit to the whole video. Engines that only work on whole videos get a one-second clip
+  around the frame; those that also take images, like SeedVR2, get the frame alone.
 - **Audio preview on a section.** Choose 5–30 seconds on the waveform, enhance only that, then
   play the original and enhanced versions and compare their spectrograms.
 - **Images go straight to the queue.** No preview step.
+- **A scale or a resolution.** Upscale by 2x, 3x or 4x, or to 720p, 1080p, 1440p or 4K
+  (by the short side, so portrait video works too). Engines told a resolution, like SeedVR2,
+  render it directly; the others run at the smallest scale that reaches it, and the result is
+  resized to the exact size with Lanczos.
 - **Queue.** Jobs run one at a time, with live progress, the engine's latest output, cancel and
   retry. Previews and jobs show how long they've run and warn when the engine has gone quiet,
   and their log so far can be copied while they run.

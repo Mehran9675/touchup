@@ -29,8 +29,11 @@ type Job struct {
 	// InputDir and OutputDir are the folders holding Input and Output.
 	InputDir, OutputDir string
 	// InWidth and InHeight are the input's size in pixels, for engines
-	// that take a target resolution instead of a scale.
-	InWidth, InHeight int
+	// that take a target resolution instead of a scale. OutWidth and
+	// OutHeight are the size wanted, when it isn't the input's times
+	// Scale.
+	InWidth, InHeight   int
+	OutWidth, OutHeight int
 	// OutputExt overrides the extension of the file the engine writes.
 	OutputExt string
 	// PathDirs are put in front of PATH for the engine, so engines that
@@ -131,10 +134,13 @@ func (m *Manifest) Command(j Job) []string {
 		"{modelPath}": m.ModelPath(j.Model),
 		"{inWidth}":   strconv.Itoa(j.InWidth),
 		"{inHeight}":  strconv.Itoa(j.InHeight),
-		"{outWidth}":  strconv.Itoa(j.InWidth * max(1, j.Scale)),
-		"{outHeight}": strconv.Itoa(j.InHeight * max(1, j.Scale)),
-		"{outShort}":  strconv.Itoa(min(j.InWidth, j.InHeight) * max(1, j.Scale)),
 	}
+	outW, outH := j.InWidth*max(1, j.Scale), j.InHeight*max(1, j.Scale)
+	if j.OutWidth > 0 && j.OutHeight > 0 {
+		outW, outH = j.OutWidth, j.OutHeight
+	}
+	vars["{outWidth}"], vars["{outHeight}"] = strconv.Itoa(outW), strconv.Itoa(outH)
+	vars["{outShort}"] = strconv.Itoa(min(outW, outH))
 	if j.Model != nil {
 		vars["{model}"] = j.Model.ID
 	}

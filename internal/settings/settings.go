@@ -35,11 +35,13 @@ type Settings struct {
 	Choices map[string]Choice `json:"choices,omitempty"`
 }
 
-// Choice is an engine, model and scale picked for a kind of media.
+// Choice is an engine, model and size picked for a kind of media: a
+// scale, or a target resolution (the short side in pixels) instead.
 type Choice struct {
 	Engine string `json:"engine"`
 	Model  string `json:"model,omitempty"`
 	Scale  int    `json:"scale,omitempty"`
+	Target int    `json:"target,omitempty"`
 }
 
 // Default returns the settings a fresh install starts with.

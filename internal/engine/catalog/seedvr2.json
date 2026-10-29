@@ -67,7 +67,12 @@
     "--video_backend",
     "ffmpeg",
     "--vae_encode_tiled",
-    "--vae_decode_tiled"
+    "--vae_decode_tiled",
+    "--dit_offload_device",
+    "cpu",
+    "--vae_offload_device",
+    "cpu",
+    "--debug"
   ],
   "gpuArgs": [
     "--cuda_device",
@@ -111,15 +116,11 @@
     {
       "id": "3b-q4",
       "name": "3B · GGUF Q4 · low memory",
-      "description": "For 6–8 GB GPUs: smaller weights, and the models wait in system memory between steps.",
+      "description": "For 6–8 GB GPUs: smaller weights that fit in less memory.",
       "size": "≈ 2.4 GB",
       "args": [
         "--dit_model",
-        "seedvr2_ema_3b-Q4_K_M.gguf",
-        "--dit_offload_device",
-        "cpu",
-        "--vae_offload_device",
-        "cpu"
+        "seedvr2_ema_3b-Q4_K_M.gguf"
       ],
       "files": [
         {

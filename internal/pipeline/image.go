@@ -29,13 +29,16 @@ func Image(ctx context.Context, o Options, in, out string, report Reporter) erro
 	report(Update{Stage: "Upscaling", Frac: 0.05})
 	j := o.job(src, filepath.Join(ws.out, "source"+o.imageExt()), ws.in, ws.out, report, "Upscaling", 0.05, 0.95)
 	j.OutputExt = o.imageExt()
-	result, err := o.Engine.Run(ctx, sized(j, info.Width, info.Height))
+	result, err := o.Engine.Run(ctx, o.sized(j, info.Width, info.Height))
 	if err != nil {
 		return err
 	}
 	report(Update{Stage: "Saving", Frac: 0.96})
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		return err
+	}
+	if sz := o.size(info.Width, info.Height); sz.Exact {
+		return o.Tools.ConvertImageSized(ctx, result, out, sz.Width, sz.Height)
 	}
 	return o.Tools.ConvertImage(ctx, result, out)
 }

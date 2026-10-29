@@ -173,6 +173,38 @@ func (m *Manifest) ScalesFor(model *Model) []int {
 	return m.Scales
 }
 
+// ScaleFor returns the smallest of model's scales that enlarges by at
+// least factor, or the largest when none does; 1 when the engine has no
+// scales.
+func (m *Manifest) ScaleFor(model *Model, factor float64) int {
+	scales := slices.Sorted(slices.Values(m.ScalesFor(model)))
+	if len(scales) == 0 {
+		return 1
+	}
+	for _, s := range scales {
+		if float64(s) >= factor-1e-9 {
+			return s
+		}
+	}
+	return scales[len(scales)-1]
+}
+
+// TakesResolution reports whether the engine is told the output size
+// itself ({outWidth}, {outHeight} or {outShort}) rather than a scale, so
+// it can make any size.
+func (m *Manifest) TakesResolution() bool {
+	args := slices.Clone(m.Args)
+	for _, mdl := range m.Models {
+		args = append(args, mdl.Args...)
+	}
+	for _, a := range args {
+		if strings.Contains(a, "{outWidth}") || strings.Contains(a, "{outHeight}") || strings.Contains(a, "{outShort}") {
+			return true
+		}
+	}
+	return false
+}
+
 // PreferredScale returns the default scale for model.
 func (m *Manifest) PreferredScale(model *Model) int {
 	scales := m.ScalesFor(model)

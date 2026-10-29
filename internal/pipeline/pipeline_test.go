@@ -135,6 +135,22 @@ func TestPreviews(t *testing.T) {
 		t.Errorf("frame preview sizes %v and %v", p.Before.Bounds(), p.After.Bounds())
 	}
 
+	// A video engine that also takes images, like SeedVR2, previews the
+	// frame alone instead of a clip around it.
+	vid := script(t, `case "$1" in *.png) ;; *) echo "got $1, not the frame"; exit 3 ;; esac
+ffmpeg -loglevel error -y -i "$1" -vf "scale=iw*$3:ih*$3" "$2"`+"\n")
+	vo := options(t, tools, &engine.Manifest{
+		ID: "vid", Name: "Video", Media: []string{"video", "image"}, Input: "video", ImageOutputExt: ".png",
+		Executable: map[string]string{"*": vid}, Args: []string{"{input}", "{output}", "{scale}"}, OutputExt: ".mp4",
+	})
+	vp, err := PreviewFrame(context.Background(), vo, video, 1.2, noReport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vp.After.Bounds().Dx() != 128 {
+		t.Errorf("video engine frame preview is %v wide, want 128", vp.After.Bounds())
+	}
+
 	// An audio engine that writes its own file name into {outputDir}.
 	snd := script(t, `ffmpeg -loglevel error -y -i "$1" -ar 48000 "$2/enhanced_$(basename "$1")"`+"\n")
 	ao := options(t, tools, &engine.Manifest{
@@ -159,16 +175,90 @@ func TestPreviews(t *testing.T) {
 func TestOutputPathAvoidsOverwriting(t *testing.T) {
 	dir := t.TempDir()
 	in := filepath.Join(dir, "song.flac")
-	first := OutputPath(in, settings.Default(), 1, ".wav", nil)
+	first := OutputPath(in, settings.Default(), "", ".wav", nil)
 	if filepath.Base(first) != "song (TouchUp).wav" {
 		t.Fatalf("got %q", first)
 	}
 	os.WriteFile(first, nil, 0o644)
-	if second := OutputPath(in, settings.Default(), 1, ".wav", nil); filepath.Base(second) != "song (TouchUp 2).wav" {
+	if second := OutputPath(in, settings.Default(), "", ".wav", nil); filepath.Base(second) != "song (TouchUp 2).wav" {
 		t.Fatalf("got %q", second)
 	}
 	taken := func(p string) bool { return filepath.Base(p) == "song (TouchUp 2).wav" }
-	if third := OutputPath(in, settings.Default(), 1, ".wav", taken); filepath.Base(third) != "song (TouchUp 3).wav" {
+	if third := OutputPath(in, settings.Default(), "", ".wav", taken); filepath.Base(third) != "song (TouchUp 3).wav" {
 		t.Fatalf("got %q", third)
 	}
+}
+
+func TestPlanSize(t *testing.T) {
+	m := &engine.Manifest{Scales: []int{2, 3, 4}}
+	for _, c := range []struct {
+		w, h, scale, target int
+		want                Size
+	}{
+		{640, 360, 2, 0, Size{Scale: 2, Width: 1280, Height: 720}},
+		{640, 360, 2, 1080, Size{Scale: 3, Width: 1920, Height: 1080, Exact: true}},
+		{1920, 1080, 4, 2160, Size{Scale: 2, Width: 3840, Height: 2160, Exact: true}},
+		{1080, 1920, 4, 2160, Size{Scale: 2, Width: 2160, Height: 3840, Exact: true}},
+		// Beyond the largest scale: the engine's best, then a resize.
+		{300, 200, 2, 1080, Size{Scale: 4, Width: 1620, Height: 1080, Exact: true}},
+		{64, 48, 2, 100, Size{Scale: 3, Width: 134, Height: 100, Exact: true}},
+	} {
+		if got := PlanSize(m, nil, c.scale, c.target, c.w, c.h); got != c.want {
+			t.Errorf("%dx%d to %d: got %+v, want %+v", c.w, c.h, c.target, got, c.want)
+		}
+	}
+}
+
+func TestTargets(t *testing.T) {
+	tools := setup(t)
+	scale := script(t, `ffmpeg -loglevel error -y -i "$1" -vf "scale=iw*$3:ih*$3" "$2"`+"\n")
+	img := options(t, tools, &engine.Manifest{
+		ID: "scale", Name: "Scale", Media: []string{"image", "video"}, Input: "image", Scales: []int{2, 3, 4},
+		Executable: map[string]string{"*": scale}, Args: []string{"{input}", "{output}", "{scale}"}, OutputExt: ".png",
+	})
+	img.Target = 100
+	check := func(name, path string, w, h int) {
+		t.Helper()
+		info, err := tools.Probe(context.Background(), path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Width != w || info.Height != h {
+			t.Errorf("%s: got %dx%d, want %dx%d", name, info.Width, info.Height, w, h)
+		}
+	}
+
+	in := filepath.Join(t.TempDir(), "in.png")
+	ffmpeg(t, "-f", "lavfi", "-i", "testsrc2=s=64x48", "-frames:v", "1", in)
+	out := filepath.Join(t.TempDir(), "out.png")
+	if err := Image(context.Background(), img, in, out, noReport); err != nil {
+		t.Fatal(err)
+	}
+	check("image", out, 134, 100)
+
+	video := filepath.Join(t.TempDir(), "in.mp4")
+	ffmpeg(t, "-f", "lavfi", "-i", "testsrc2=s=64x48:r=10", "-t", "1", "-c:v", "libx264", "-pix_fmt", "yuv420p", video)
+	info, err := tools.Probe(context.Background(), video)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vout := filepath.Join(t.TempDir(), "frames.mp4")
+	if err := Video(context.Background(), img, video, vout, info, noReport); err != nil {
+		t.Fatal(err)
+	}
+	check("video by frames", vout, 134, 100)
+
+	// A video engine told the size, landing a little off it, as SeedVR2
+	// can: the result is resized.
+	whole := script(t, `ffmpeg -loglevel error -y -i "$1" -vf "scale=-2:$(($3 + 2))" -c:v libx264 -pix_fmt yuv420p "$2"`+"\n")
+	vid := options(t, tools, &engine.Manifest{
+		ID: "whole", Name: "Whole", Media: []string{"video"}, Input: "video", Scales: []int{2, 3, 4},
+		Executable: map[string]string{"*": whole}, Args: []string{"{input}", "{output}", "{outShort}"}, OutputExt: ".mp4",
+	})
+	vid.Target = 100
+	wout := filepath.Join(t.TempDir(), "whole.mp4")
+	if err := Video(context.Background(), vid, video, wout, info, noReport); err != nil {
+		t.Fatal(err)
+	}
+	check("whole video", wout, 134, 100)
 }

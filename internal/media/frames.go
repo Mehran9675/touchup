@@ -24,6 +24,13 @@ type JoinOptions struct {
 	Quality  int    // CRF for h264/h265
 	AudioSrc string // file whose audio is copied in; empty for none
 	Duration float64
+	// Width and Height resize the frames, when both are set.
+	Width, Height int
+}
+
+// scaleFilter resizes to w×h with Lanczos filtering.
+func scaleFilter(w, h int) string {
+	return "scale=" + strconv.Itoa(w) + ":" + strconv.Itoa(h) + ":flags=lanczos"
 }
 
 // JoinFrames encodes numbered PNGs in dir into a video at out, muxing in
@@ -36,6 +43,9 @@ func (t Tools) JoinFrames(ctx context.Context, dir, out string, o JoinOptions, o
 	args := []string{"-framerate", strconv.FormatFloat(o.FPS, 'f', 6, 64), "-i", filepath.Join(dir, framePattern+ext)}
 	if o.AudioSrc != "" {
 		args = append(args, "-i", o.AudioSrc, "-map", "0:v:0", "-map", "1:a?", "-c:a", "copy")
+	}
+	if o.Width > 0 && o.Height > 0 {
+		args = append(args, "-vf", scaleFilter(o.Width, o.Height))
 	}
 	switch o.Codec {
 	case "h265":
@@ -70,7 +80,22 @@ func (t Tools) Remux(ctx context.Context, video, audioSrc, out string) error {
 	if err == nil || ctx.Err() != nil {
 		return err
 	}
-	return t.ffmpeg(ctx, 0, nil, "-i", video, "-i", audioSrc, "-map", "0:v:0", "-map", "1:a?",
-		"-c:v", "libx264", "-crf", "14", "-preset", "slow", "-pix_fmt", "yuv420p", "-c:a", "aac",
-		"-b:a", "256k", "-shortest", out)
+	return t.reencode(ctx, video, audioSrc, out, "-c:a", "aac", "-b:a", "256k")
+}
+
+// RemuxSized is Remux that also resizes the picture to w×h, which means
+// encoding it again; the sound is still copied.
+func (t Tools) RemuxSized(ctx context.Context, video, audioSrc, out string, w, h int) error {
+	err := t.reencode(ctx, video, audioSrc, out, "-vf", scaleFilter(w, h), "-c:a", "copy")
+	if err == nil || ctx.Err() != nil {
+		return err
+	}
+	return t.reencode(ctx, video, audioSrc, out, "-vf", scaleFilter(w, h), "-c:a", "aac", "-b:a", "256k")
+}
+
+func (t Tools) reencode(ctx context.Context, video, audioSrc, out string, extra ...string) error {
+	args := []string{"-i", video, "-i", audioSrc, "-map", "0:v:0", "-map", "1:a?",
+		"-c:v", "libx264", "-crf", "14", "-preset", "slow", "-pix_fmt", "yuv420p"}
+	args = append(append(args, extra...), "-shortest", out)
+	return t.ffmpeg(ctx, 0, nil, args...)
 }

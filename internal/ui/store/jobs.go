@@ -70,7 +70,7 @@ func (s *Store) Enqueue() {
 	case media.Audio:
 		ext = "." + s.Settings.AudioFormat
 	}
-	out := pipeline.OutputPath(sess.Path, s.Settings, sel.Scale, ext, func(p string) bool {
+	out := pipeline.OutputPath(sess.Path, s.Settings, sel.SizeLabel(), ext, func(p string) bool {
 		for _, j := range s.Jobs {
 			if !j.Ended() && j.Output == p {
 				return true
