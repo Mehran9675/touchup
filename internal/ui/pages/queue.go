@@ -3,7 +3,6 @@ package pages
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/mehran9675/giode"
 	"github.com/mehran9675/giode/components/scroll"
@@ -91,8 +90,14 @@ func (q *Queue) card(j *store.Job) giode.Element {
 	case store.JobRunning:
 		p.Status, p.Tone = "Running", theme.Primary
 		p.Running, p.Frac, p.Stage, p.Line = true, j.Update.Frac, j.Update.Stage, j.Update.Line
-		p.Detail = "Running for " + format.Elapsed(time.Since(j.Started)) + " · saving to " + j.Output
-		p.Actions = []giode.Element{button("job-cancel", "Cancel", "x", true, func() { s.CancelJob(j) })}
+		p.Clock = components.RunClock(j.Started, j.Log.Last)
+		p.Detail = "Saving to " + j.Output
+		p.Actions = []giode.Element{
+			components.CopyAction("job-copy-log", j, "Copy log", func() string {
+				return s.RunningReport(j.Name, j.Update, j.Started, &j.Log)
+			}),
+			button("job-cancel", "Cancel", "x", true, func() { s.CancelJob(j) }),
+		}
 	case store.JobDone:
 		p.Status, p.Tone = "Done", theme.Success
 		p.Detail = j.Output + " · took " + format.Elapsed(j.Finished.Sub(j.Started))

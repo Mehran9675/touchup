@@ -19,12 +19,18 @@ before/after comparisons. Nothing is uploaded.
   installed ones.
 - **Video preview on a single frame.** Scrub the timeline to any moment and upscale just that
   frame. A split view with zoom and pan compares the original with the result before you
-  commit to the whole video.
+  commit to the whole video. Engines that only work on whole videos get a one-second clip
+  around the frame; those that also take images, like SeedVR2, get the frame alone.
 - **Audio preview on a section.** Choose 5–30 seconds on the waveform, enhance only that, then
   play the original and enhanced versions and compare their spectrograms.
 - **Images go straight to the queue.** No preview step.
+- **A scale or a resolution.** Upscale by 2x, 3x or 4x, or to 720p, 1080p, 1440p or 4K
+  (by the short side, so portrait video works too). Engines told a resolution, like SeedVR2,
+  render it directly; the others run at the smallest scale that reaches it, and the result is
+  resized to the exact size with Lanczos.
 - **Queue.** Jobs run one at a time, with live progress, the engine's latest output, cancel and
-  retry.
+  retry. Previews and jobs show how long they've run and warn when the engine has gone quiet,
+  and their log so far can be copied while they run.
 - **Errors you can report.** Every failure, from a preview, a job, an engine install or a model
   download, has a Copy button. It copies the whole report: what failed, the TouchUp version,
   system, GPU setting and Python, and everything the engine or installer printed.
@@ -56,9 +62,11 @@ The strongest engines are listed first.
 PyTorch SR runs every model through `spandrel_runner.py`, a script TouchUp ships into the
 engine's folder. It tiles large images to fit in GPU memory, keeps transparency, scales 4x models
 down to 2x or 3x when asked, and by default restores the original's colors where a model drifts
-on saturated hues (`--no-color-fix` turns that off in a custom manifest). When the GPU can't run a
-model (a card too old for the installed PyTorch, or a half-precision fault), it retries in full
-precision and then on the CPU, and a failure ends with one `Error:` line that TouchUp shows. Installed PyTorch engines have a
+on saturated hues (`--no-color-fix` turns that off in a custom manifest). On an NVIDIA GPU it runs
+in half precision, or in bfloat16 for models that overflow in half (DRCT, DAT, ATD, HAT, SwinIR),
+through autocast with the weights kept in float32. When the GPU can't run a model (a card too old
+for the installed PyTorch, or output that overflows), it retries in full precision and then on the
+CPU, and a failure ends with one `Error:` line that TouchUp shows. Installed PyTorch engines have a
 **Check GPU** button that reports the PyTorch and CUDA versions, the GPU and its compute
 capability, and whether a small test runs on it in full and half precision.
 
@@ -145,6 +153,7 @@ manifest and use **Import manifest**. This one is the built-in Real-CUGAN, sligh
 | `inputRate`, `imageOutputExt` | The sample rate an audio engine needs, and what a video engine writes when given an image. |
 | `outputExt` | The extension the program writes. When it picks its own file name, TouchUp takes the newest such file in `{outputDir}`. |
 | `progress` | Optional regular expression whose first group is a percentage in the program's output (default: `N%`). |
+| `progressSteps` | For programs that count parts instead: regular expressions, outermost first, whose two groups are a part's number and the total, such as `"Chunk (\\d+)/(\\d+)"` and `"batch (\\d+)/(\\d+)"`. |
 
 Custom manifests are stored next to the installed engines, in `custom-engines/`.
 

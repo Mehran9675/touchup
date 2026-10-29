@@ -23,6 +23,7 @@ type VideoStage struct {
 	dismiss  *giode.ButtonElement
 	details  *giode.ButtonElement
 	copy     giode.Element
+	copyLog  giode.Element
 }
 
 // NewVideoStage creates the stage.
@@ -48,6 +49,7 @@ func NewVideoStage(s *store.Store, errs *components.ErrorDetails) *VideoStage {
 		}
 	})
 	v.copy = theme.CopyButton("Copy", func() string { return previewReport(s) })
+	v.copyLog = theme.CopyButton("Copy log", func() string { return runningPreviewReport(s) })
 	return v
 }
 
@@ -84,7 +86,8 @@ func (v *VideoStage) View() giode.Element {
 	}
 	if p.Running {
 		viewer = withOverlay(viewer, centered(components.ProgressPanel(
-			"Previewing "+format.Clock(sess.Time), p.Update.Stage, p.Update.Frac, p.Update.Line, v.cancel)))
+			"Previewing "+format.Clock(sess.Time), p.Update.Stage, p.Update.Frac, p.Update.Line,
+			components.RunClock(p.Started, p.Log.Last), v.copyLog, v.cancel)))
 	}
 
 	v.timeline.Duration = sess.Info.Duration

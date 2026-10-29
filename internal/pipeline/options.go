@@ -14,9 +14,12 @@ import (
 
 // Options select the engine and how it runs.
 type Options struct {
-	Engine   *engine.Manifest
-	Model    *engine.Model
-	Scale    int
+	Engine *engine.Manifest
+	Model  *engine.Model
+	Scale  int
+	// Target is the short side of the result in pixels, such as 2160 for
+	// 4K, or 0 to let Scale decide the size.
+	Target   int
 	Settings settings.Settings
 	Tools    media.Tools
 }
@@ -53,13 +56,6 @@ func (o Options) imageExt() string {
 		return o.Engine.ImageOutputExt
 	}
 	return ".png"
-}
-
-// sized sets the input size on j, for engines that take a target
-// resolution.
-func sized(j engine.Job, w, h int) engine.Job {
-	j.InWidth, j.InHeight = w, h
-	return j
 }
 
 func (o Options) job(in, out, inDir, outDir string, report Reporter, stage string, from, to float64) engine.Job {

@@ -13,15 +13,15 @@ import (
 // it or in the configured folder, named "<name> (TouchUp 4x).<ext>", with
 // a number added when that file exists or taken reports the name as
 // reserved (by a job still in the queue).
-func OutputPath(input string, s settings.Settings, scale int, ext string, taken func(string) bool) string {
+func OutputPath(input string, s settings.Settings, size string, ext string, taken func(string) bool) string {
 	dir := s.OutputDir
 	if dir == "" {
 		dir = filepath.Dir(input)
 	}
 	base := strings.TrimSuffix(filepath.Base(input), filepath.Ext(input))
 	tag := "TouchUp"
-	if scale > 1 {
-		tag = fmt.Sprintf("TouchUp %dx", scale)
+	if size != "" {
+		tag += " " + size
 	}
 	candidate := filepath.Join(dir, fmt.Sprintf("%s (%s)%s", base, tag, ext))
 	for i := 2; exists(candidate) || taken != nil && taken(candidate); i++ {

@@ -36,6 +36,7 @@ type Job struct {
 
 	Status   JobStatus
 	Update   pipeline.Update
+	Log      LiveLog // what the engine has printed so far
 	Err      string
 	ErrLog   string // what the engine printed last, when it failed
 	Created  time.Time
@@ -69,7 +70,7 @@ func (s *Store) Enqueue() {
 	case media.Audio:
 		ext = "." + s.Settings.AudioFormat
 	}
-	out := pipeline.OutputPath(sess.Path, s.Settings, sel.Scale, ext, func(p string) bool {
+	out := pipeline.OutputPath(sess.Path, s.Settings, sel.SizeLabel(), ext, func(p string) bool {
 		for _, j := range s.Jobs {
 			if !j.Ended() && j.Output == p {
 				return true
@@ -109,8 +110,12 @@ func (s *Store) start(j *Job) {
 	ctx, cancel := context.WithCancel(context.Background())
 	j.Status, j.cancel, j.Started = JobRunning, cancel, time.Now()
 	j.Update = pipeline.Update{Stage: "Starting", Frac: 0}
+	j.Log.reset()
 	report := func(u pipeline.Update) {
 		s.post(func() {
+			if u.Line != "" {
+				j.Log.add(u.Line)
+			}
 			if u.Frac < 0 {
 				u.Frac = j.Update.Frac
 			}

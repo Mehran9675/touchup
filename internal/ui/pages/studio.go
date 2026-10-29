@@ -123,6 +123,17 @@ func (st *Studio) header() giode.Element {
 	)
 }
 
+// runningPreviewReport is what the session's running preview has
+// printed so far, to copy when it seems stuck.
+func runningPreviewReport(s *store.Store) string {
+	sess := s.Session
+	if sess == nil {
+		return ""
+	}
+	p := &sess.Preview
+	return s.RunningReport("The preview of "+sess.Name, p.Update, p.Started, &p.Log)
+}
+
 // previewReport is the full report of the session's failed preview.
 func previewReport(s *store.Store) string {
 	sess := s.Session

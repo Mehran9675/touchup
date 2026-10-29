@@ -24,6 +24,7 @@ type AudioStage struct {
 	dismiss  *giode.ButtonElement
 	details  *giode.ButtonElement
 	copy     giode.Element
+	copyLog  giode.Element
 }
 
 // NewAudioStage creates the stage.
@@ -38,6 +39,7 @@ func NewAudioStage(s *store.Store, errs *components.ErrorDetails) *AudioStage {
 		}
 	})
 	a.copy = theme.CopyButton("Copy", func() string { return previewReport(s) })
+	a.copyLog = theme.CopyButton("Copy log", func() string { return runningPreviewReport(s) })
 	return a
 }
 
@@ -90,7 +92,8 @@ func (a *AudioStage) View() giode.Element {
 	case p.Running:
 		result = giode.Box(giode.Styles{Width: -1, Height: -1, Align: giode.AlignCenter, Justify: giode.JustifyCenter},
 			components.ProgressPanel("Previewing "+format.Duration(sess.SelLen)+" of audio",
-				p.Update.Stage, p.Update.Frac, p.Update.Line, a.cancel))
+				p.Update.Stage, p.Update.Frac, p.Update.Line,
+				components.RunClock(p.Started, p.Log.Last), a.copyLog, a.cancel))
 	case sess.PreviewMatches():
 		result = a.result()
 	case p.Audio != nil:

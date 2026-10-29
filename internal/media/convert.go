@@ -11,10 +11,19 @@ import (
 // ConvertImage writes the image at in to out in the format named by
 // out's extension, copying when the formats already match.
 func (t Tools) ConvertImage(ctx context.Context, in, out string) error {
-	if sameExt(in, out) {
+	return t.ConvertImageSized(ctx, in, out, 0, 0)
+}
+
+// ConvertImageSized is ConvertImage that also resizes the image to w×h
+// with Lanczos filtering, unless w or h is 0.
+func (t Tools) ConvertImageSized(ctx context.Context, in, out string, w, h int) error {
+	if sameExt(in, out) && (w <= 0 || h <= 0) {
 		return copyFile(in, out)
 	}
 	args := []string{"-i", in}
+	if w > 0 && h > 0 {
+		args = append(args, "-vf", scaleFilter(w, h))
+	}
 	switch strings.ToLower(filepath.Ext(out)) {
 	case ".jpg", ".jpeg":
 		args = append(args, "-q:v", "1")

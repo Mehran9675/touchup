@@ -11,12 +11,52 @@ import (
 	"github.com/mehran9675/touchup/internal/settings"
 )
 
-// Selection is the engine, model and scale chosen for a kind of media,
-// resolved against what's installed.
+// Selection is the engine, model and size chosen for a kind of media,
+// resolved against what's installed and the open file.
 type Selection struct {
 	Engine *engine.Manifest // nil when no engine for the kind is installed
 	Model  *engine.Model    // nil when the engine has no installed model
 	Scale  int
+	Target int // a resolution's short side, which replaces Scale; or 0
+}
+
+// Size plans the result for a w×h input.
+func (sel Selection) Size(w, h int) pipeline.Size {
+	return pipeline.PlanSize(sel.Engine, sel.Model, sel.Scale, sel.Target, w, h)
+}
+
+// SizeLabel names the chosen size: "4x", "1080p" or "4K"; empty for
+// engines without one.
+func (sel Selection) SizeLabel() string {
+	switch {
+	case sel.Target > 0:
+		return pipeline.TargetLabel(sel.Target)
+	case sel.Scale > 1:
+		return fmt.Sprintf("%dx", sel.Scale)
+	}
+	return ""
+}
+
+// Targets lists the resolutions sel can make from a w×h input: those
+// larger than it, and for engines with fixed scales only those within
+// their largest scale, so the last step is never a big plain resize.
+func (sel Selection) Targets(w, h int) []int {
+	short := min(w, h)
+	scales := sel.Engine.ScalesFor(sel.Model)
+	if short <= 0 || len(scales) == 0 {
+		return nil
+	}
+	var out []int
+	for _, t := range pipeline.Targets {
+		if t <= short {
+			continue
+		}
+		if !sel.Engine.TakesResolution() && t > short*slices.Max(scales) {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
 }
 
 // Ready reports whether the selection can run: an installed engine, and
@@ -45,8 +85,8 @@ func (sel Selection) Label() string {
 	if sel.Model != nil {
 		l += " · " + sel.Model.Name
 	}
-	if sel.Scale > 1 {
-		l += fmt.Sprintf(" · %dx", sel.Scale)
+	if size := sel.SizeLabel(); size != "" {
+		l += " · " + size
 	}
 	return l
 }
@@ -83,7 +123,7 @@ func (s *Store) Selected(kind media.Kind) Selection {
 		if m == nil {
 			return Selection{}
 		}
-		c = settings.Choice{Engine: m.ID}
+		c = settings.Choice{Engine: m.ID, Target: c.Target}
 	}
 	model := s.installedModel(m, c.Model)
 	scale := c.Scale
@@ -93,7 +133,13 @@ func (s *Store) Selected(kind media.Kind) Selection {
 	if len(m.ScalesFor(model)) == 0 {
 		scale = 1
 	}
-	return Selection{Engine: m, Model: model, Scale: scale}
+	sel := Selection{Engine: m, Model: model, Scale: scale}
+	// A target holds only for files it enlarges.
+	if sess := s.Session; c.Target > 0 && sess != nil && sess.Kind == kind &&
+		slices.Contains(sel.Targets(sess.Info.Width, sess.Info.Height), c.Target) {
+		sel.Target = c.Target
+	}
+	return sel
 }
 
 // installedModel returns the model with id when it's downloaded,
@@ -122,7 +168,8 @@ func (s *Store) installedModel(m *engine.Manifest, id string) *engine.Model {
 }
 
 // Choose remembers an engine, model and scale for kind. Empty values
-// keep the current ones; a new engine resets the model and scale.
+// keep the current ones; a new engine resets the model and scale, and
+// a scale replaces a chosen resolution.
 func (s *Store) Choose(kind media.Kind, engineID, modelID string, scale int) {
 	cur := s.Selected(kind)
 	c := settings.Choice{}
@@ -131,17 +178,28 @@ func (s *Store) Choose(kind media.Kind, engineID, modelID string, scale int) {
 		if cur.Model != nil {
 			c.Model = cur.Model.ID
 		}
-		c.Scale = cur.Scale
+		c.Scale, c.Target = cur.Scale, s.Settings.Choices[kind.String()].Target
 	}
 	if engineID != "" && engineID != c.Engine {
-		c = settings.Choice{Engine: engineID}
+		c = settings.Choice{Engine: engineID, Target: c.Target} // a resolution suits any engine
 	}
 	if modelID != "" {
 		c.Model = modelID
 	}
 	if scale > 0 {
-		c.Scale = scale
+		c.Scale, c.Target = scale, 0
 	}
+	s.setChoice(kind, c)
+}
+
+// ChooseTarget picks a resolution for kind instead of a scale.
+func (s *Store) ChooseTarget(kind media.Kind, target int) {
+	c := s.Settings.Choices[kind.String()]
+	c.Target = target
+	s.setChoice(kind, c)
+}
+
+func (s *Store) setChoice(kind media.Kind, c settings.Choice) {
 	if s.Settings.Choices == nil {
 		s.Settings.Choices = map[string]settings.Choice{}
 	}
@@ -153,7 +211,7 @@ func (s *Store) Choose(kind media.Kind, engineID, modelID string, scale int) {
 func (s *Store) options(kind media.Kind) (pipeline.Options, Selection) {
 	sel := s.Selected(kind)
 	return pipeline.Options{
-		Engine: sel.Engine, Model: sel.Model, Scale: sel.Scale,
+		Engine: sel.Engine, Model: sel.Model, Scale: sel.Scale, Target: sel.Target,
 		Settings: s.Settings, Tools: s.Tools,
 	}, sel
 }

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -62,7 +63,7 @@ func frameVideo(ctx context.Context, o Options, ws *workspace, in, out string, i
 				}
 			}
 		}()
-		j := sized(o.job(ws.in, ws.out, ws.in, ws.out, report, stage, from, to), info.Width, info.Height)
+		j := o.sized(o.job(ws.in, ws.out, ws.in, ws.out, report, stage, from, to), info.Width, info.Height)
 		j.Progress = nil // per-frame percentages would jump around
 		_, err := o.Engine.Run(ctx, j)
 		close(stop)
@@ -82,7 +83,7 @@ func frameVideo(ctx context.Context, o Options, ws *workspace, in, out string, i
 			}
 			name := filepath.Base(frame)
 			target := filepath.Join(ws.out, name[:len(name)-len(filepath.Ext(name))]+o.Engine.OutputExt)
-			j := sized(o.job(frame, target, ws.in, frameDir, report, stage, from, to), info.Width, info.Height)
+			j := o.sized(o.job(frame, target, ws.in, frameDir, report, stage, from, to), info.Width, info.Height)
 			j.Progress = nil
 			result, err := o.Engine.Run(ctx, j)
 			if err != nil {
@@ -97,10 +98,14 @@ func frameVideo(ctx context.Context, o Options, ws *workspace, in, out string, i
 			report(Update{Stage: stage, Frac: from + (to-from)*float64(i+1)/total})
 		}
 	}
-	return o.Tools.JoinFrames(ctx, ws.out, out, media.JoinOptions{
+	join := media.JoinOptions{
 		FPS: info.FPS, FrameExt: o.Engine.OutputExt, Codec: o.Settings.VideoCodec, Quality: o.Settings.VideoQuality,
 		AudioSrc: in, Duration: info.Duration,
-	}, func(f float64) {
+	}
+	if sz := o.size(info.Width, info.Height); sz.Exact {
+		join.Width, join.Height = sz.Width, sz.Height
+	}
+	return o.Tools.JoinFrames(ctx, ws.out, out, join, func(f float64) {
 		report(Update{Stage: "Encoding", Frac: to + (1-to)*f})
 	})
 }
@@ -114,11 +119,20 @@ func wholeVideo(ctx context.Context, o Options, ws *workspace, in, out string, i
 			return err
 		}
 	}
-	result, err := o.Engine.Run(ctx, sized(o.job(src, filepath.Join(ws.out, "source"+o.Engine.OutputExt),
+	result, err := o.Engine.Run(ctx, o.sized(o.job(src, filepath.Join(ws.out, "source"+o.Engine.OutputExt),
 		ws.in, ws.out, report, "Upscaling", 0.02, 0.92), info.Width, info.Height))
 	if err != nil {
 		return err
 	}
 	report(Update{Stage: "Adding audio", Frac: 0.93})
+	// An engine told a target size can still land a few pixels off it,
+	// or one with a fixed scale far from it: then it's resized, which
+	// means encoding the picture again.
+	if sz := o.size(info.Width, info.Height); sz.Exact {
+		if got, err := o.Tools.Probe(ctx, result); err == nil && (got.Width != sz.Width || got.Height != sz.Height) {
+			report(Update{Stage: "Resizing to " + fmt.Sprintf("%d × %d", sz.Width, sz.Height), Frac: 0.93})
+			return o.Tools.RemuxSized(ctx, result, in, out, sz.Width, sz.Height)
+		}
+	}
 	return o.Tools.Remux(ctx, result, in, out)
 }

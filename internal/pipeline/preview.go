@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"os"
 	"path/filepath"
@@ -28,7 +29,10 @@ func PreviewFrame(ctx context.Context, o Options, path string, at float64, repor
 	}
 	defer ws.close()
 
-	if o.Engine.Input == "video" {
+	// Engines that read whole videos get a short clip around the frame,
+	// unless they also take images: then the frame alone is enough, and a
+	// clip would be dozens of frames of work for one.
+	if o.Engine.Input == "video" && !o.Engine.Handles("image") {
 		start := max(0, at-clipLength/2)
 		clip := filepath.Join(ws.in, "clip.mp4")
 		report(Update{Stage: "Cutting a clip", Frac: 0.05})
@@ -40,7 +44,7 @@ func PreviewFrame(ctx context.Context, o Options, path string, at float64, repor
 			return FramePreview{}, err
 		}
 		report(Update{Stage: "Upscaling", Frac: 0.1})
-		result, err := o.Engine.Run(ctx, sized(o.job(clip, filepath.Join(ws.out, "clip"+o.Engine.OutputExt),
+		result, err := o.Engine.Run(ctx, o.sized(o.job(clip, filepath.Join(ws.out, "clip"+o.Engine.OutputExt),
 			ws.in, ws.out, report, "Upscaling", 0.1, 0.95), info.Width, info.Height))
 		if err != nil {
 			return FramePreview{}, err
@@ -62,12 +66,22 @@ func PreviewFrame(ctx context.Context, o Options, path string, at float64, repor
 	if err != nil {
 		return FramePreview{}, err
 	}
-	report(Update{Stage: "Upscaling", Frac: 0.1})
 	b := before.Bounds()
-	result, err := o.Engine.Run(ctx, sized(o.job(frame, filepath.Join(ws.out, "frame"+o.Engine.OutputExt),
-		ws.in, ws.out, report, "Upscaling", 0.1, 0.95), b.Dx(), b.Dy()))
+	sz := o.size(b.Dx(), b.Dy())
+	stage := fmt.Sprintf("Upscaling to %d × %d", sz.Width, sz.Height)
+	report(Update{Stage: stage, Frac: 0.1})
+	j := o.job(frame, filepath.Join(ws.out, "frame"+o.imageExt()), ws.in, ws.out, report, stage, 0.1, 0.95)
+	j.OutputExt = o.imageExt()
+	result, err := o.Engine.Run(ctx, o.sized(j, b.Dx(), b.Dy()))
 	if err != nil {
 		return FramePreview{}, err
+	}
+	if sz.Exact {
+		sized := filepath.Join(ws.out, "frame-sized.png")
+		if err := o.Tools.ConvertImageSized(ctx, result, sized, sz.Width, sz.Height); err != nil {
+			return FramePreview{}, err
+		}
+		result = sized
 	}
 	after, err := o.Tools.LoadImage(ctx, result)
 	return FramePreview{Before: before, After: after}, err

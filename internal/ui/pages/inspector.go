@@ -12,6 +12,7 @@ import (
 
 	"github.com/mehran9675/touchup/internal/engine"
 	"github.com/mehran9675/touchup/internal/media"
+	"github.com/mehran9675/touchup/internal/pipeline"
 	"github.com/mehran9675/touchup/internal/ui/components"
 	"github.com/mehran9675/touchup/internal/ui/format"
 	"github.com/mehran9675/touchup/internal/ui/store"
@@ -147,15 +148,25 @@ func (in *Inspector) content() giode.Element {
 			}
 			sections = append(sections, giode.Stack(giode.Styles{Gap: 10, Width: -1}, group...))
 		}
-		// Scales.
+		// Size: a scale, or for pictures a resolution to reach.
 		if scales := sel.Engine.ScalesFor(sel.Model); len(scales) > 0 {
 			pills := []giode.Element{}
 			for _, sc := range scales {
 				pills = append(pills, components.Pill("scale:"+sel.Engine.ID, sc, fmt.Sprintf("%dx", sc),
-					sel.Scale == sc, func() { s.Choose(kind, "", "", sc) }))
+					sel.Target == 0 && sel.Scale == sc, func() { s.Choose(kind, "", "", sc) }))
 			}
-			sections = append(sections, giode.Stack(giode.Styles{Gap: 10, Width: -1},
-				components.SectionLabel("Scale"), giode.Row(giode.Styles{Gap: 8}, pills...)))
+			group := []giode.Element{components.SectionLabel("Size"), giode.Row(giode.Styles{Gap: 8}, pills...)}
+			if kind != media.Audio {
+				if targets := sel.Targets(sess.Info.Width, sess.Info.Height); len(targets) > 0 {
+					res := []giode.Element{}
+					for _, t := range targets {
+						res = append(res, components.Pill("target", t, pipeline.TargetLabel(t),
+							sel.Target == t, func() { s.ChooseTarget(kind, t) }))
+					}
+					group = append(group, giode.Row(giode.Styles{Gap: 8}, res...))
+				}
+			}
+			sections = append(sections, giode.Stack(giode.Styles{Gap: 10, Width: -1}, group...))
 		}
 		sections = append(sections, in.output(sel))
 	}
@@ -178,7 +189,11 @@ func (in *Inspector) output(sel store.Selection) giode.Element {
 	switch sess.Kind {
 	case media.Image, media.Video:
 		if info.Width > 0 {
-			rows = append(rows, line("Size", format.Resolution(info.Width*sel.Scale, info.Height*sel.Scale)))
+			sz := sel.Size(info.Width, info.Height)
+			rows = append(rows, line("Size", format.Resolution(sz.Width, sz.Height)))
+			if sz.Exact && sz.Scale > 1 && !sel.Engine.TakesResolution() {
+				rows = append(rows, line("Engine runs at", fmt.Sprintf("%dx, then resized", sz.Scale)))
+			}
 		}
 		if sess.Kind == media.Image {
 			rows = append(rows, line("Format", strings.ToUpper(st.ImageFormat)))
