@@ -256,6 +256,15 @@
       "args": ["--touchup-cudnn-tune"]
     },
     {
+      "id": "conv3d",
+      "name": "Conv3d workaround",
+      "type": "toggle",
+      "default": "true",
+      "description": "SeedVR2 calls cuDNN directly for 3D convolutions, to avoid a memory bug in PyTorch 2.9 and 2.10. Newer PyTorch may not need it, and the normal path can be faster.",
+      "args": [],
+      "argsOff": ["--touchup-plain-conv3d"]
+    },
+    {
       "id": "color",
       "name": "Color correction",
       "type": "choice",
@@ -294,5 +303,15 @@
       "args": ["--debug"]
     }
   ],
-  "progressSteps": ["Chunk (\\d+)/(\\d+)", "Upscaling batch (\\d+)/(\\d+)"]
+  "progressSteps": ["Chunk (\\d+)/(\\d+)", "Upscaling batch (\\d+)/(\\d+)"],
+  "tune": {
+    "seconds": 2,
+    "steps": [
+      {"option": "vaeMemory", "values": ["1", "2", "4"]},
+      {"option": "tile", "values": ["768", "1024"]},
+      {"option": "cudnn", "values": ["true"]},
+      {"option": "conv3d", "values": ["false"]},
+      {"option": "batch", "values": ["33", "45"]}
+    ]
+  }
 }

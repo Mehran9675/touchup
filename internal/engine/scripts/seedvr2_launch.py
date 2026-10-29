@@ -9,10 +9,14 @@ out its own, which SeedVR2 has no flags for:
                               it's split into pieces (SeedVR2's is 0.5)
     --touchup-cudnn-tune      let cuDNN time its kernels and keep the
                               fastest for these sizes
+    --touchup-plain-conv3d    skip SeedVR2's workaround for a Conv3d
+                              memory bug of PyTorch 2.9 and 2.10, which
+                              calls cuDNN directly with tuning off
 
     python seedvr2_launch.py src/inference_cli.py video.mp4 --batch_size 21 ...
 """
 
+import inspect
 import os
 import runpy
 import sys
@@ -54,16 +58,28 @@ def patch_vae_memory(gigabytes):
 
     patched = 0
     for cls in vars(attn_video_vae).values():
-        if isinstance(cls, type) and "set_memory_limit" in vars(cls):
-            original = cls.set_memory_limit
+        # Only the VAE's own method, which takes both limits: the module
+        # also imports its convolutions, whose set_memory_limit takes one.
+        if not isinstance(cls, type) or "set_memory_limit" not in vars(cls):
+            continue
+        if "conv_max_mem" not in inspect.signature(vars(cls)["set_memory_limit"]).parameters:
+            continue
+        original = cls.set_memory_limit
 
-            def set_memory_limit(self, conv_max_mem=None, norm_max_mem=None, _original=original):
-                _original(self, conv_max_mem=gigabytes, norm_max_mem=gigabytes)
+        def set_memory_limit(self, conv_max_mem=None, norm_max_mem=None, _original=original):
+            _original(self, conv_max_mem=gigabytes, norm_max_mem=gigabytes)
 
-            cls.set_memory_limit = set_memory_limit
-            patched += 1
+        cls.set_memory_limit = set_memory_limit
+        patched += 1
     if patched:
         print(f"TouchUp: VAE steps may use {gigabytes:g} GB before splitting", flush=True)
+
+
+def plain_conv3d():
+    from src.models.video_vae_v3.modules import causal_inflation_lib
+
+    causal_inflation_lib.NVIDIA_CONV3D_MEMORY_BUG_WORKAROUND = False
+    print("TouchUp: Conv3d workaround off", flush=True)
 
 
 def tune_cudnn():
@@ -90,6 +106,7 @@ def main():
     chunk = take(argv, "--touchup-chunk-frames")
     vae_memory = take(argv, "--touchup-vae-memory")
     tune = take(argv, "--touchup-cudnn-tune", has_value=False)
+    plain = take(argv, "--touchup-plain-conv3d", has_value=False)
 
     if chunk is not None:
         batch = int(arg(argv, "--batch_size", "5"))
@@ -112,6 +129,8 @@ def main():
         tune_cudnn()
     if vae_memory is not None:
         patch_vae_memory(float(vae_memory))
+    if plain:
+        plain_conv3d()
 
     sys.argv = [cli] + argv
     runpy.run_path(cli, run_name="__main__")

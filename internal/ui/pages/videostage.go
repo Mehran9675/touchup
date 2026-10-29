@@ -85,8 +85,12 @@ func (v *VideoStage) View() giode.Element {
 		}
 	}
 	if p.Running {
+		title := "Previewing " + format.Clock(sess.Time)
+		if p.Tuning {
+			title = "Finding the fastest settings"
+		}
 		viewer = withOverlay(viewer, centered(components.ProgressPanel(
-			"Previewing "+format.Clock(sess.Time), p.Update.Stage, p.Update.Frac, p.Update.Line,
+			title, p.Update.Stage, p.Update.Frac, p.Update.Line,
 			components.RunClock(p.Started, p.Log.Last, p.TimeLeft), v.copyLog, v.cancel)))
 	}
 

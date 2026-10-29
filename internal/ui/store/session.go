@@ -48,6 +48,7 @@ type Session struct {
 // Preview is the state of a preview run and its result.
 type Preview struct {
 	Running bool
+	Tuning  bool // the run is timing the engine's settings, not a preview
 	Update  pipeline.Update
 	Started time.Time
 	Log     LiveLog // what the engine has printed so far

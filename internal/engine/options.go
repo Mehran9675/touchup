@@ -148,3 +148,42 @@ func (m *Manifest) validateOptions() []string {
 	}
 	return problems
 }
+
+// Tuning is what TouchUp tries when finding an engine's fastest
+// settings: a clip of Seconds from the user's video, upscaled with each
+// step's values in turn.
+type Tuning struct {
+	Seconds float64    `json:"seconds"`
+	Steps   []TuneStep `json:"steps"`
+}
+
+// TuneStep is an option and the values to try for it, from the
+// cheapest to the most demanding: the tuner keeps going while each is
+// faster than the last and stops at the first that's slower or fails.
+type TuneStep struct {
+	Option string   `json:"option"`
+	Values []string `json:"values"`
+}
+
+func (m *Manifest) validateTuning() []string {
+	if m.Tune == nil {
+		return nil
+	}
+	var problems []string
+	if m.Tune.Seconds <= 0 {
+		problems = append(problems, "tune needs a clip length in seconds")
+	}
+	for _, st := range m.Tune.Steps {
+		o := m.OptionByID(st.Option)
+		if o == nil {
+			problems = append(problems, fmt.Sprintf("tune step names an unknown option %q", st.Option))
+			continue
+		}
+		for _, v := range st.Values {
+			if !o.Valid(v) {
+				problems = append(problems, fmt.Sprintf("tune step for %q has an invalid value %q", st.Option, v))
+			}
+		}
+	}
+	return problems
+}

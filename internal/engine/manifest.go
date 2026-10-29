@@ -79,6 +79,9 @@ type Manifest struct {
 	// Options are settings the user can change, shown on the engine's
 	// card.
 	Options []Option `json:"options,omitempty"`
+	// Tune lists the options worth timing to find the fastest settings
+	// for the user's GPU.
+	Tune *Tuning `json:"tune,omitempty"`
 
 	// Featured engines are listed first: the strongest of the catalog.
 	Featured bool `json:"featured,omitempty"`
@@ -283,6 +286,7 @@ func (m *Manifest) Validate() error {
 		}
 	}
 	problems = append(problems, m.validateOptions()...)
+	problems = append(problems, m.validateTuning()...)
 	for _, s := range m.ProgressSteps {
 		if re, err := regexp.Compile(s); err != nil || re.NumSubexp() < 2 {
 			problems = append(problems, fmt.Sprintf("progress step %q needs two groups: the part and the total", s))

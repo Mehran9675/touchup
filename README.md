@@ -84,9 +84,12 @@ its VAE use more memory per step than SeedVR2's 0.5 GB when there's room, and ca
 kernel tuning. SeedVR2 can't split a picture, so TouchUp upscales pictures over 2048 pixels a side
 (an engine setting) in overlapping parts and joins them with feathered seams.
 
-Diffusion models like SeedVR2 take seconds per frame on any home GPU, so a TV episode takes many
-hours; TouchUp warns before such a job. For whole episodes, PyTorch SR with RealPLKSR or Real-ESRGAN
-General v3 is many times faster.
+Diffusion models like SeedVR2 take seconds per frame on any home GPU, so a TV episode takes hours;
+TouchUp warns before such a job. Which of its settings are fastest depends on the GPU, so **Find the
+fastest** in the studio times them on two seconds of the open video: more VAE memory per step, bigger
+tiles, cuDNN tuning, the Conv3d workaround off, bigger batches. It keeps each that's faster, stops a
+trial that's already slower than the best or runs out of memory, saves the winners and shows what each
+try took. Engines declare what to try in their manifest's `tune`.
 
 The GPU memory limit comes from `sitecustomize.py`, which TouchUp puts on `PYTHONPATH` for Python
 engines. When the engine starts CUDA, it caps PyTorch at the memory free at that moment.
@@ -174,6 +177,7 @@ manifest and use **Import manifest**. This one is the built-in Real-CUGAN, sligh
 | `inputRate`, `imageOutputExt` | The sample rate an audio engine needs, and what a video engine writes when given an image. |
 | `outputExt` | The extension the program writes. When it picks its own file name, TouchUp takes the newest such file in `{outputDir}`. |
 | `progress` | Optional regular expression whose first group is a percentage in the program's output (default: `N%`). |
+| `tune` | What **Find the fastest** tries: `seconds` of the user's video to time, and `steps`, each an `option` and the `values` to try in order of cost. |
 | `options` | Settings shown on the engine card: `id`, `name`, `description`, `type` (`choice` with `choices` of `value` and `label`, `number` with optional `min` and `max`, or `toggle`), `default`, and `args` with `{value}` (for a toggle, `args` when on and `argsOff` when off). The option `touchup.tileImage` (output pixels a side, `0` for never) makes TouchUp split large pictures for the engine. |
 | `progressSteps` | For programs that count parts instead: regular expressions, outermost first, whose two groups are a part's number and the total, such as `"Chunk (\\d+)/(\\d+)"` and `"batch (\\d+)/(\\d+)"`. |
 
