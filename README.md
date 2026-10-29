@@ -25,6 +25,9 @@ before/after comparisons. Nothing is uploaded.
 - **Images go straight to the queue.** No preview step.
 - **Queue.** Jobs run one at a time, with live progress, the engine's latest output, cancel and
   retry.
+- **Errors you can report.** Every failure, from a preview, a job, an engine install or a model
+  download, has a Copy button. It copies the whole report: what failed, the TouchUp version,
+  system, GPU setting and Python, and everything the engine or installer printed.
 - **Output control.** PNG/JPEG/WebP, H.264/H.265/ProRes with a quality setting, WAV/FLAC/MP3,
   GPU selection, and a custom output folder.
 - Dark and light themes, file drop, and "Open with TouchUp" on every desktop.
@@ -53,7 +56,11 @@ The strongest engines are listed first.
 PyTorch SR runs every model through `spandrel_runner.py`, a script TouchUp ships into the
 engine's folder. It tiles large images to fit in GPU memory, keeps transparency, scales 4x models
 down to 2x or 3x when asked, and by default restores the original's colors where a model drifts
-on saturated hues (`--no-color-fix` turns that off in a custom manifest).
+on saturated hues (`--no-color-fix` turns that off in a custom manifest). When the GPU can't run a
+model (a card too old for the installed PyTorch, or a half-precision fault), it retries in full
+precision and then on the CPU, and a failure ends with one `Error:` line that TouchUp shows. Installed PyTorch engines have a
+**Check GPU** button that reports the PyTorch and CUDA versions, the GPU and its compute
+capability, and whether a small test runs on it in full and half precision.
 
 Engines are installed per user into `~/.local/share/TouchUp/engines` (Linux),
 `~/Library/Application Support/TouchUp/engines` (macOS) or `%LOCALAPPDATA%\TouchUp\engines`

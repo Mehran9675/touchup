@@ -17,14 +17,15 @@ import (
 // Queue lists upscale jobs: running, waiting and finished.
 type Queue struct {
 	s      *store.Store
+	errors *components.ErrorDetails
 	scroll *scroll.Scroll
 	clear  *giode.ButtonElement
 	studio *giode.ButtonElement
 }
 
 // NewQueue creates the page.
-func NewQueue(s *store.Store) *Queue {
-	q := &Queue{s: s}
+func NewQueue(s *store.Store, errs *components.ErrorDetails) *Queue {
+	q := &Queue{s: s, errors: errs}
 	q.scroll = giode.Scroll(q.list, giode.Styles{ScrollBar: giode.ScrollBar{Width: 4, ThumbColor: theme.Border}})
 	q.clear = theme.SecondaryButton("Clear finished", "check").OnClick(s.ClearFinished)
 	q.studio = theme.PrimaryButton("Open the studio", "wand-sparkles").OnClick(func() { s.Navigate(store.PageStudio) })
@@ -104,7 +105,12 @@ func (q *Queue) card(j *store.Job) giode.Element {
 	case store.JobFailed:
 		p.Status, p.Tone = "Failed", theme.Danger
 		p.Detail = j.Err
-		p.Actions = []giode.Element{button("job-retry", "Try again", "rotate-ccw", false, func() { s.RetryJob(j) })}
+		report := func() string { return s.ErrorReport(j.Name+" failed", j.Err, j.ErrLog) }
+		p.Actions = []giode.Element{
+			components.CopyAction("job-copy", j, "Copy", report),
+			button("job-details", "Details", "", true, func() { q.errors.Show(j.Name+" failed", report()) }),
+			button("job-retry", "Try again", "rotate-ccw", false, func() { s.RetryJob(j) }),
+		}
 	case store.JobCanceled:
 		p.Status, p.Tone = "Canceled", theme.Muted
 		p.Detail = "Stopped before it finished"

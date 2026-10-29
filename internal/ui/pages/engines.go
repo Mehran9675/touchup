@@ -32,17 +32,14 @@ type Engines struct {
 	modelsScroll *scroll.Scroll
 	modelsClose  *giode.ButtonElement
 
-	// errorTitle and errorText fill the error details dialog.
-	errorTitle, errorText string
-	errorOn               bool
-	errorDialog           *dialog.Dialog
-	errorClose            *giode.ButtonElement
-	errorCopy             giode.Element
+	errors *components.ErrorDetails
+	// checking marks engines whose GPU check is running.
+	checking map[string]bool
 }
 
 // NewEngines creates the page.
-func NewEngines(s *store.Store) *Engines {
-	e := &Engines{s: s, filter: theme.Segmented("All", "Image & video", "Audio", "Installed")}
+func NewEngines(s *store.Store, errs *components.ErrorDetails) *Engines {
+	e := &Engines{s: s, errors: errs, checking: map[string]bool{}, filter: theme.Segmented("All", "Image & video", "Audio", "Installed")}
 	e.scroll = giode.Scroll(e.grid, giode.Styles{ScrollBar: giode.ScrollBar{Width: 4, ThumbColor: theme.Border}})
 	e.form = components.NewCustomEngineForm()
 	e.form.OnSave = func(m *engine.Manifest) error {
@@ -63,11 +60,6 @@ func NewEngines(s *store.Store) *Engines {
 	e.imp = theme.SecondaryButton("Import manifest", "file-code").OnClick(s.ImportManifest)
 	e.modelsScroll = giode.Scroll(e.modelList, giode.Styles{ScrollBar: giode.ScrollBar{Width: 4, ThumbColor: theme.Border}}).FitContent(true)
 	e.modelsClose = theme.SecondaryButton("Done", "").OnClick(func() { e.modelsOn = false })
-	e.errorClose = theme.SecondaryButton("Close", "").OnClick(func() { e.errorOn = false })
-	e.errorCopy = giode.CopyButton(func() string { return e.errorText })
-	e.errorDialog = giode.Dialog(&e.errorOn, e.errorView, giode.Styles{
-		Background: theme.Surface, BorderRadius: 20, Padding: giode.UniformInset(24),
-	})
 	e.modelsDialog = giode.Dialog(&e.modelsOn, e.modelsView, giode.Styles{
 		Background: theme.Surface, BorderRadius: 20, Padding: giode.UniformInset(24),
 	})
@@ -92,38 +84,11 @@ func (e *Engines) View() giode.Element {
 // Overlays are the page's dialogs, laid out last in the window's root so
 // they cover everything.
 func (e *Engines) Overlays() []giode.Element {
-	return []giode.Element{e.dialog, e.modelsDialog, e.errorDialog}
+	return []giode.Element{e.dialog, e.modelsDialog}
 }
 
 // DialogOpen reports whether one of the page's dialogs is showing.
-func (e *Engines) DialogOpen() bool { return e.formOn || e.modelsOn || e.errorOn }
-
-// showError opens the error details dialog.
-func (e *Engines) showError(title, text string) {
-	e.errorTitle, e.errorText, e.errorOn = title, text, true
-}
-
-// errorView is the error details dialog: the whole message, selectable,
-// with a copy button, for errors too long for a card.
-func (e *Engines) errorView() giode.Element {
-	text := e.errorText
-	return giode.Stack(giode.Styles{Width: 620, Gap: 16},
-		giode.Row(giode.Styles{Gap: 12, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
-			components.IconBubble("triangle-alert", theme.Danger, 40),
-			giode.Stack(giode.Styles{Gap: 2, FlexGrow: 1},
-				giode.Text(e.errorTitle, theme.Heading().With(giode.Styles{FontSize: 18})),
-				giode.Text("The last lines the installer printed:", theme.Secondary()),
-			),
-		),
-		giode.Box(giode.Styles{
-			Width: -1, MaxHeight: 360, Background: theme.Sunken(), BorderRadius: 12, Padding: giode.UniformInset(14),
-		}, giode.Text(text, theme.Code().With(giode.Styles{Color: theme.Text, MaxLines: 20})).Selectable("engine-error")),
-		giode.Row(giode.Styles{Width: -1, Gap: 8, Justify: giode.JustifyEnd},
-			e.errorCopy,
-			e.errorClose,
-		),
-	)
-}
+func (e *Engines) DialogOpen() bool { return e.formOn || e.modelsOn }
 
 func (e *Engines) grid() giode.Element {
 	s := e.s
@@ -195,20 +160,44 @@ func (e *Engines) footer(m *engine.Manifest) giode.Element {
 		// happened and Details shows the rest.
 		return row(
 			theme.Icon("triangle-alert", 16, theme.Danger),
-			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text("Install failed", theme.Label().With(giode.Styles{
-				FontSize: 12.5, Color: theme.Danger,
+			giode.Box(giode.Styles{FlexGrow: 1}, giode.Text("Failed", theme.Label().With(giode.Styles{
+				FontSize: 12.5, Color: theme.Danger, MaxLines: 1, TextOverflow: giode.TextOverflowEllipsis,
 			}))),
-			action("engine-details", "Details", "", theme.GhostButton, func() {
-				e.showError("Couldn't install "+m.Name, in.Err)
+			components.CopyAction("engine-copy", m.ID, "", func() string {
+				return s.ErrorReport("Couldn't install "+m.Name, in.Err, in.Log)
 			}),
-			action("engine-retry", "Try again", "refresh-cw", theme.SecondaryButton, func() { s.InstallEngine(m) }),
+			action("engine-details", "Details", "", theme.GhostButton, func() {
+				e.errors.Show("Couldn't install "+m.Name, s.ErrorReport("Couldn't install "+m.Name, in.Err, in.Log))
+			}),
+			action("engine-retry", "Retry", "refresh-cw", theme.SecondaryButton, func() { s.InstallEngine(m) }),
 		)
 	case s.Installed(m.ID):
 		uninstall := giode.Element(giode.Box(giode.Styles{}))
 		if m.Install.Type != "none" {
 			uninstall = action("engine-uninstall", "Uninstall", "trash", theme.GhostButton, func() { s.UninstallEngine(m) })
 		}
-		return row(website(), spacer, uninstall, remove())
+		if !m.UsesTorch() {
+			return row(website(), spacer, uninstall, remove())
+		}
+		// PyTorch engines get a GPU check; the website shrinks to an icon
+		// to make room.
+		check := action("engine-gpu", "Check GPU", "cpu", theme.GhostButton, func() {
+			e.checking[m.ID] = true
+			s.CheckGPU(m, func(report string, err error) {
+				delete(e.checking, m.ID)
+				if err != nil {
+					report = err.Error()
+				}
+				e.errors.ShowReport("GPU check · "+m.Name,
+					"What "+m.Name+"'s PyTorch sees. Copy it to report a problem.", report, "cpu", theme.Primary)
+			})
+		}).(*giode.ButtonElement).Loading(e.checking[m.ID])
+		site := giode.Element(giode.Box(giode.Styles{}))
+		if m.Homepage != "" {
+			site = action("engine-home-icon", "", "external-link", theme.GhostButton,
+				func() { go s.App.OpenURL(context.Background(), m.Homepage) })
+		}
+		return row(check, site, spacer, uninstall, remove())
 	case !m.Supported():
 		return row(giode.Text("Not available for this system", theme.Caption()), spacer, remove())
 	}
@@ -328,6 +317,9 @@ func (e *Engines) modelRow(m *engine.Manifest, mdl *engine.Model, engineInstalle
 			func() { s.CancelModelInstall(m, mdl) })
 	case in != nil && in.Err != "":
 		p.Err = in.Err
+		p.Copy = components.CopyAction("model-copy", key, "", func() string {
+			return s.ErrorReport("Couldn't download "+mdl.Name+" for "+m.Name, in.Err, in.Log)
+		})
 		p.Action = components.Action("model-retry", key, func() *giode.ButtonElement { return theme.SecondaryButton("Retry", "rotate-ccw") },
 			func() { s.DismissModelError(m, mdl); s.InstallModel(m, mdl) })
 	case s.ModelInstalled(m, mdl):

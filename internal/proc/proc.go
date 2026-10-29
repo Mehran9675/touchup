@@ -19,7 +19,8 @@ func Command(ctx context.Context, name string, args ...string) *exec.Cmd {
 }
 
 // Lines calls fn for every line read from r, treating a lone \r as a
-// line end too, since progress meters redraw with it.
+// line end too, since progress meters redraw with it. Lines keep their
+// indentation, which tracebacks need, but not trailing spaces.
 func Lines(r io.Reader, fn func(line string)) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
@@ -34,10 +35,10 @@ func scanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		return 0, nil, nil
 	}
 	if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
-		return i + 1, bytes.TrimSpace(data[:i]), nil
+		return i + 1, bytes.TrimRight(data[:i], " \t"), nil
 	}
 	if atEOF {
-		return len(data), bytes.TrimSpace(data), nil
+		return len(data), bytes.TrimRight(data, " \t"), nil
 	}
 	return 0, nil, nil
 }

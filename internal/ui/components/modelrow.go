@@ -19,8 +19,10 @@ type ModelRowProps struct {
 	Stage       string
 	Frac        float64
 	Err         string
-	// Action is the row's button, built by the page.
+	// Action is the row's button, built by the page. Copy copies a failed
+	// download's error, next to it.
 	Action giode.Element
+	Copy   giode.Element
 }
 
 // ModelRow is one model in an engine card: its name, what it's for, its
@@ -58,6 +60,9 @@ func ModelRow(p ModelRowProps) giode.Element {
 		info = append(info, status)
 	}
 	row := []giode.Element{giode.Stack(giode.Styles{Gap: 3, FlexGrow: 1}, info...)}
+	if p.Copy != nil && p.Err != "" {
+		row = append(row, p.Copy)
+	}
 	if p.Action != nil {
 		row = append(row, p.Action)
 	}

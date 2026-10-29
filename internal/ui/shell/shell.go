@@ -6,6 +6,7 @@ import (
 	"github.com/mehran9675/giode"
 	"github.com/mehran9675/giode/components/titlebar"
 
+	"github.com/mehran9675/touchup/internal/ui/components"
 	"github.com/mehran9675/touchup/internal/ui/pages"
 	"github.com/mehran9675/touchup/internal/ui/store"
 	"github.com/mehran9675/touchup/internal/ui/theme"
@@ -18,18 +19,21 @@ type Shell struct {
 	engines  *pages.Engines
 	queue    *pages.Queue
 	settings *pages.Settings
+	errors   *components.ErrorDetails
 	bar      *titlebar.TitleBar // nil with the system frame
 }
 
 // New builds every page once, and the title bar when the window is
 // frameless.
 func New(s *store.Store, dragging func() bool) *Shell {
+	errs := components.NewErrorDetails()
 	sh := &Shell{
 		s:        s,
-		studio:   pages.NewStudio(s, dragging),
-		engines:  pages.NewEngines(s),
-		queue:    pages.NewQueue(s),
+		studio:   pages.NewStudio(s, dragging, errs),
+		engines:  pages.NewEngines(s, errs),
+		queue:    pages.NewQueue(s, errs),
 		settings: pages.NewSettings(s),
+		errors:   errs,
 	}
 	if CustomFrame() {
 		sh.bar = newTitleBar(s)
@@ -66,14 +70,14 @@ func (sh *Shell) View() giode.Element {
 	// the layout: an open dialog would otherwise take space from the page.
 	// Gio blends in linear light, so the dialog's own scrim barely shows on
 	// the dark theme; a deeper one goes under it.
-	if sh.engines.DialogOpen() {
+	if sh.engines.DialogOpen() || sh.errors.Open() {
 		root = append(root, giode.Box(giode.Styles{
 			Position: giode.PositionAbsolute,
 			Top:      giode.Flush, Left: giode.Flush, Right: giode.Flush, Bottom: giode.Flush,
 			Background: "#000000A0",
 		}))
 	}
-	for _, o := range sh.engines.Overlays() {
+	for _, o := range append(sh.engines.Overlays(), sh.errors.Dialog()) {
 		root = append(root, giode.Box(giode.Styles{
 			Position: giode.PositionAbsolute,
 			Top:      giode.Flush, Left: giode.Flush, Right: giode.Flush, Bottom: giode.Flush,

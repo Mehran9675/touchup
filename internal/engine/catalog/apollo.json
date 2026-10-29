@@ -28,7 +28,7 @@
     "pip": [
       {
         "args": [
-          "torch",
+          "torch>=2.7",
           "torchaudio"
         ],
         "indexURL": {

@@ -14,6 +14,7 @@ import (
 type Install struct {
 	Status engine.Status
 	Err    string
+	Log    string // what the installer printed, when it failed
 	cancel context.CancelFunc
 }
 
@@ -39,7 +40,7 @@ func (s *Store) InstallEngine(m *engine.Manifest) {
 			case errors.Is(err, context.Canceled):
 				delete(s.Installs, m.ID)
 			case err != nil:
-				in.Err = err.Error()
+				in.Err, in.Log = err.Error(), engine.LogOf(err)
 				s.Toasts.Show(giode.ToastError, "Couldn't install "+m.Name)
 			default:
 				delete(s.Installs, m.ID)
@@ -136,7 +137,7 @@ func (s *Store) InstallModel(m *engine.Manifest, mdl *engine.Model) {
 			case errors.Is(err, context.Canceled):
 				delete(s.ModelInstalls, key)
 			case err != nil:
-				in.Err = err.Error()
+				in.Err, in.Log = err.Error(), engine.LogOf(err)
 				s.Toasts.Show(giode.ToastError, "Couldn't download "+mdl.Name)
 			default:
 				delete(s.ModelInstalls, key)
@@ -166,4 +167,13 @@ func (s *Store) UninstallModel(m *engine.Manifest, mdl *engine.Model) {
 	}
 	s.refreshInstalled()
 	s.Toasts.Show(giode.ToastInfo, mdl.Name+" was removed")
+}
+
+// CheckGPU runs an engine's GPU check in the background and calls done
+// with its report on the UI goroutine.
+func (s *Store) CheckGPU(m *engine.Manifest, done func(report string, err error)) {
+	go func() {
+		report, err := engine.CheckGPU(context.Background(), m)
+		s.post(func() { done(report, err) })
+	}()
 }

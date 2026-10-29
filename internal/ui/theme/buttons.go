@@ -93,3 +93,20 @@ func IconButton(icon, label string) *iconbutton.Button {
 		giode.Styles{Background: Text, BorderRadius: 8, Padding: giode.UniformInset(7)}).
 		Variant(giode.IconButtonGhost).Label(label)
 }
+
+// CopyButton is a quiet button that copies text() to the clipboard and
+// confirms with a check mark. An empty label shows the icon alone.
+func CopyButton(label string, text func() string) giode.Element {
+	b := giode.CopyButton(text, giode.Styles{
+		Color:        Muted,
+		FontSize:     13,
+		BorderRadius: 8,
+		Padding:      giode.SymmetricInset(10, 7),
+	})
+	if label == "" {
+		b.Labels("", "")
+	} else {
+		b.Labels(label, "Copied")
+	}
+	return b
+}

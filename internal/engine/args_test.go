@@ -24,3 +24,20 @@ func TestSlug(t *testing.T) {
 		}
 	}
 }
+
+func TestSummarize(t *testing.T) {
+	traceback := []string{
+		"Traceback (most recent call last):",
+		`  File "C:\\x\\module.py", line 1790, in _call_impl`,
+		"    return forward_call(*args, **kwargs)",
+		"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+		"RuntimeError: CUDA error: no kernel image is available",
+	}
+	if got := summarize(traceback); got != "RuntimeError: CUDA error: no kernel image is available" {
+		t.Errorf("traceback: %q", got)
+	}
+	withError := append(traceback, "Error: The GPU ran out of memory.")
+	if got := summarize(withError); got != "The GPU ran out of memory." {
+		t.Errorf("runner error line: %q", got)
+	}
+}

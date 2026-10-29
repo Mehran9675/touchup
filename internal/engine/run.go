@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -56,6 +57,9 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	if j.Model != nil && !m.ModelInstalled(j.Model) {
 		return "", fmt.Errorf("the %s model of %s is not installed", j.Model.Name, m.Name)
 	}
+	if err := installScripts(m); err != nil {
+		return "", fmt.Errorf("updating %s's scripts: %w", m.Name, err)
+	}
 	args := m.Command(j)
 	cmd := proc.Command(ctx, exe, args...)
 	cmd.Dir = m.workingDir(exe)
@@ -73,15 +77,16 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 			re = custom
 		}
 	}
-	tail := &tailBuffer{max: 8}
+	tail := &tailBuffer{max: 400}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		proc.Lines(pr, func(line string) {
+		proc.Lines(pr, func(raw string) {
+			line := strings.TrimSpace(raw)
 			if line == "" {
 				return
 			}
-			tail.add(line)
+			tail.add(raw)
 			if j.Log != nil {
 				j.Log(line)
 			}
@@ -103,7 +108,7 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
-		return "", fmt.Errorf("%s failed: %s", m.Name, tail.String())
+		return "", &RunError{Engine: m.Name, Summary: summarize(tail.lines), Log: tail.String()}
 	}
 	if _, err := os.Stat(j.Output); err == nil {
 		return j.Output, nil
@@ -115,7 +120,7 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	if found := newestOutput(j.OutputDir, ext, started); found != "" {
 		return found, nil
 	}
-	return "", fmt.Errorf("%s finished without writing a %s file. Last output: %s", m.Name, ext, tail.String())
+	return "", &RunError{Engine: m.Name, Summary: "finished without writing a " + ext + " file", Log: tail.String()}
 }
 
 // Command returns the engine's arguments with the placeholders filled in.
@@ -194,4 +199,42 @@ func newestOutput(dir, ext string, started time.Time) string {
 		return nil
 	})
 	return best
+}
+
+// RunError is an engine or install step that failed: a one-line Summary
+// to show, and the end of what it printed, for a details view.
+type RunError struct {
+	Engine  string
+	Summary string
+	Log     string
+}
+
+func (e *RunError) Error() string { return e.Engine + " failed: " + e.Summary }
+
+// summarize picks the line that says why a run failed: the last "Error:"
+// line (TouchUp's runner scripts end with one), else the last line that
+// isn't part of a traceback's code listing.
+func summarize(lines []string) string {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if s, ok := strings.CutPrefix(strings.TrimSpace(lines[i]), "Error: "); ok {
+			return s
+		}
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		l := strings.TrimSpace(lines[i])
+		if l == "" || strings.Trim(l, "^~ ") == "" || strings.HasPrefix(l, "File \"") {
+			continue
+		}
+		return l
+	}
+	return "it exited without saying why"
+}
+
+// LogOf returns the engine output behind err, if it's a RunError.
+func LogOf(err error) string {
+	var re *RunError
+	if errors.As(err, &re) {
+		return re.Log
+	}
+	return ""
 }

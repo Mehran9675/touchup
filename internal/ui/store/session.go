@@ -49,6 +49,7 @@ type Preview struct {
 	Running bool
 	Update  pipeline.Update
 	Err     string
+	ErrLog  string // what the engine printed last, when it failed
 
 	// At is the video time or audio start the result was made for.
 	At     float64
