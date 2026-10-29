@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/mehran9675/touchup/internal/engine"
 
 	"github.com/mehran9675/touchup/internal/media"
@@ -24,9 +26,13 @@ func (s *Store) RunPreview() {
 	ctx, cancel := context.WithCancel(sess.ctx)
 	p := &sess.Preview
 	p.Running, p.Err, p.ErrLog, p.cancel = true, "", "", cancel
-	p.Update = pipeline.Update{Stage: "Starting", Frac: 0}
+	p.Update, p.Started = pipeline.Update{Stage: "Starting", Frac: 0}, time.Now()
+	p.Log.reset()
 	report := func(u pipeline.Update) {
 		s.post(func() {
+			if u.Line != "" {
+				p.Log.add(u.Line)
+			}
 			if u.Frac < 0 {
 				u.Frac = p.Update.Frac
 			}
@@ -81,6 +87,16 @@ func (s *Store) CancelPreview() {
 	if sess := s.Session; sess != nil && sess.Preview.cancel != nil {
 		sess.Preview.cancel()
 	}
+}
+
+// RunningReport is a running preview's report so far, to copy when it
+// seems stuck.
+func (s *Store) RunningReport(title string, u pipeline.Update, started time.Time, log *LiveLog) string {
+	status := u.Stage + " · running for " + time.Since(started).Round(time.Second).String()
+	if !log.Last.IsZero() {
+		status += " · last output " + time.Since(log.Last).Round(time.Second).String() + " ago"
+	}
+	return s.ErrorReport(title+" (still running)", status, log.String())
 }
 
 // DismissPreviewError clears a failed preview's message.

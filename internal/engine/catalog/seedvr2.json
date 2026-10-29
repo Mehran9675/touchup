@@ -60,6 +60,8 @@
     "21",
     "--temporal_overlap",
     "3",
+    "--chunk_size",
+    "42",
     "--color_correction",
     "lab",
     "--video_backend",
@@ -72,6 +74,10 @@
     "{gpu}"
   ],
   "outputExt": ".mp4",
+  "progressSteps": [
+    "Chunk (\\d+)/(\\d+)",
+    "Upscaling batch (\\d+)/(\\d+)"
+  ],
   "scales": [
     2,
     3,

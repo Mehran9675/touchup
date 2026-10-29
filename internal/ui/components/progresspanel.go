@@ -7,9 +7,10 @@ import (
 )
 
 // ProgressPanel floats over a stage while a preview runs: what's
-// happening, how far along it is, the engine's latest output, and a way
-// to stop.
-func ProgressPanel(title, stage string, frac float64, line string, cancel giode.Element) giode.Element {
+// happening, how far along it is, the engine's latest output, how long
+// it has run (a RunClock), and actions such as copying the log or
+// stopping.
+func ProgressPanel(title, stage string, frac float64, line string, clock giode.Element, actions ...giode.Element) giode.Element {
 	return giode.Stack(giode.Styles{
 		Width: 380, Gap: 12,
 		Background: theme.Surface, BorderColor: theme.Faint(), BorderWidth: 1, BorderRadius: 16,
@@ -28,7 +29,7 @@ func ProgressPanel(title, stage string, frac float64, line string, cancel giode.
 			giode.Text(percent(frac), theme.Label().With(giode.Styles{Color: theme.Muted})),
 		),
 		ProgressBar(frac, 6),
-		outputLine(line),
-		giode.Row(giode.Styles{Width: -1, Justify: giode.JustifyEnd}, cancel),
+		giode.Stack(giode.Styles{Width: -1, Gap: 4}, outputLine(line), clock),
+		giode.Row(giode.Styles{Width: -1, Gap: 4, Justify: giode.JustifyEnd}, actions...),
 	)
 }

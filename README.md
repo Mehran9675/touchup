@@ -24,7 +24,8 @@ before/after comparisons. Nothing is uploaded.
   play the original and enhanced versions and compare their spectrograms.
 - **Images go straight to the queue.** No preview step.
 - **Queue.** Jobs run one at a time, with live progress, the engine's latest output, cancel and
-  retry.
+  retry. Previews and jobs show how long they've run and warn when the engine has gone quiet,
+  and their log so far can be copied while they run.
 - **Errors you can report.** Every failure, from a preview, a job, an engine install or a model
   download, has a Copy button. It copies the whole report: what failed, the TouchUp version,
   system, GPU setting and Python, and everything the engine or installer printed.
@@ -147,6 +148,7 @@ manifest and use **Import manifest**. This one is the built-in Real-CUGAN, sligh
 | `inputRate`, `imageOutputExt` | The sample rate an audio engine needs, and what a video engine writes when given an image. |
 | `outputExt` | The extension the program writes. When it picks its own file name, TouchUp takes the newest such file in `{outputDir}`. |
 | `progress` | Optional regular expression whose first group is a percentage in the program's output (default: `N%`). |
+| `progressSteps` | For programs that count parts instead: regular expressions, outermost first, whose two groups are a part's number and the total, such as `"Chunk (\\d+)/(\\d+)"` and `"batch (\\d+)/(\\d+)"`. |
 
 Custom manifests are stored next to the installed engines, in `custom-engines/`.
 

@@ -18,7 +18,8 @@ type JobCardProps struct {
 	Frac    float64
 	Stage   string
 	Line    string
-	Detail  string // output path, error or timing
+	Clock   giode.Element // a RunClock while running
+	Detail  string        // output path, error or timing
 	Actions []giode.Element
 }
 
@@ -45,6 +46,7 @@ func JobCard(p JobCardProps) giode.Element {
 			),
 			ProgressBar(p.Frac, 6),
 			outputLine(p.Line),
+			p.Clock,
 		))
 	}
 	foot := []giode.Element{

@@ -71,12 +71,7 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	pr, pw := io.Pipe()
 	cmd.Stdout, cmd.Stderr = pw, pw
 
-	re := defaultProgress
-	if m.Progress != "" {
-		if custom, err := regexp.Compile(m.Progress); err == nil {
-			re = custom
-		}
-	}
+	prog := newProgress(m)
 	tail := &tailBuffer{max: 400}
 	done := make(chan struct{})
 	go func() {
@@ -93,10 +88,8 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 			if j.Progress == nil {
 				return
 			}
-			if mm := re.FindStringSubmatch(line); len(mm) > 1 {
-				if v, err := strconv.ParseFloat(mm[1], 64); err == nil {
-					j.Progress(min(1, max(0, v/100)))
-				}
+			if f, ok := prog.line(line); ok {
+				j.Progress(f)
 			}
 		})
 	}()
