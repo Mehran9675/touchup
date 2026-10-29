@@ -22,6 +22,10 @@ type Settings struct {
 	OutputDir string `json:"outputDir,omitempty"`
 	// GPU is the device index passed to engines; -1 lets them choose.
 	GPU int `json:"gpu"`
+	// AllowSystemMemory lets engines whose GPU runs out of memory carry
+	// on in system memory, as Windows drivers allow, many times slower.
+	// Off, they fail with "out of memory" instead.
+	AllowSystemMemory bool `json:"allowSystemMemory"`
 
 	ImageFormat  string `json:"imageFormat"`  // png, jpg, webp
 	AudioFormat  string `json:"audioFormat"`  // wav, flac, mp3
@@ -33,6 +37,9 @@ type Settings struct {
 	// Choices remembers the engine, model and scale last used for each
 	// kind of media.
 	Choices map[string]Choice `json:"choices,omitempty"`
+	// EngineOptions are the user's values for engines' options, by
+	// engine ID and option ID. Options not here use their defaults.
+	EngineOptions map[string]map[string]string `json:"engineOptions,omitempty"`
 }
 
 // Choice is an engine, model and size picked for a kind of media: a

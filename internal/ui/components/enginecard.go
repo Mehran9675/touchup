@@ -147,5 +147,9 @@ func percent(f float64) string {
 	if f < 0 {
 		return ""
 	}
+	if f < 0.1 {
+		// Long runs creep: 2.4% shows it moving where 2% wouldn't.
+		return fmt.Sprintf("%.1f%%", f*100)
+	}
 	return fmt.Sprintf("%d%%", int(f*100))
 }

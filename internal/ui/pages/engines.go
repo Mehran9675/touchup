@@ -32,14 +32,15 @@ type Engines struct {
 	modelsScroll *scroll.Scroll
 	modelsClose  *giode.ButtonElement
 
-	errors *components.ErrorDetails
+	errors  *components.ErrorDetails
+	options *components.EngineSettings
 	// checking marks engines whose GPU check is running.
 	checking map[string]bool
 }
 
 // NewEngines creates the page.
-func NewEngines(s *store.Store, errs *components.ErrorDetails) *Engines {
-	e := &Engines{s: s, errors: errs, checking: map[string]bool{}, filter: theme.Segmented("All", "Image & video", "Audio", "Installed")}
+func NewEngines(s *store.Store, errs *components.ErrorDetails, options *components.EngineSettings) *Engines {
+	e := &Engines{s: s, errors: errs, options: options, checking: map[string]bool{}, filter: theme.Segmented("All", "Image & video", "Audio", "Installed")}
 	e.scroll = giode.Scroll(e.grid, giode.Styles{ScrollBar: giode.ScrollBar{Width: 4, ThumbColor: theme.Border}})
 	e.form = components.NewCustomEngineForm()
 	e.form.OnSave = func(m *engine.Manifest) error {
@@ -176,8 +177,26 @@ func (e *Engines) footer(m *engine.Manifest) giode.Element {
 		if m.Install.Type != "none" {
 			uninstall = action("engine-uninstall", "Uninstall", "trash", theme.GhostButton, func() { s.UninstallEngine(m) })
 		}
+		// Engines with options get a Settings button; the website shrinks
+		// to an icon to make room.
+		settings := giode.Element(giode.Box(giode.Styles{}))
+		if len(m.Options) > 0 {
+			label := "Settings"
+			if m.UsesTorch() {
+				label = "" // next to Check GPU, an icon is all that fits
+			}
+			settings = action("engine-settings", label, "sliders-horizontal", theme.GhostButton, func() { e.options.Show(m) })
+		}
 		if !m.UsesTorch() {
-			return row(website(), spacer, uninstall, remove())
+			if len(m.Options) == 0 {
+				return row(website(), spacer, uninstall, remove())
+			}
+			site := giode.Element(giode.Box(giode.Styles{}))
+			if m.Homepage != "" {
+				site = action("engine-home-icon", "", "external-link", theme.GhostButton,
+					func() { go s.App.OpenURL(context.Background(), m.Homepage) })
+			}
+			return row(settings, site, spacer, uninstall, remove())
 		}
 		// PyTorch engines get a GPU check; the website shrinks to an icon
 		// to make room.
@@ -197,7 +216,10 @@ func (e *Engines) footer(m *engine.Manifest) giode.Element {
 			site = action("engine-home-icon", "", "external-link", theme.GhostButton,
 				func() { go s.App.OpenURL(context.Background(), m.Homepage) })
 		}
-		return row(check, site, spacer, uninstall, remove())
+		if len(m.Options) > 0 && m.Install.Type != "none" {
+			uninstall = action("engine-uninstall-icon", "", "trash", theme.GhostButton, func() { s.UninstallEngine(m) })
+		}
+		return row(check, settings, site, spacer, uninstall, remove())
 	case !m.Supported():
 		return row(giode.Text("Not available for this system", theme.Caption()), spacer, remove())
 	}

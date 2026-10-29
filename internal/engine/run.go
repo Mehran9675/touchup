@@ -39,6 +39,14 @@ type Job struct {
 	// PathDirs are put in front of PATH for the engine, so engines that
 	// call FFmpeg themselves find the one TouchUp uses.
 	PathDirs []string
+	// Options are the values of the engine's options, from
+	// OptionValues; missing ones take their defaults.
+	Options map[string]string
+	// StrictGPUMemory keeps Python engines' PyTorch within the GPU's
+	// free memory, so running out fails at once instead of spilling into
+	// system memory, which Windows drivers do and which is many times
+	// slower.
+	StrictGPUMemory bool
 
 	// Progress receives the engine's own percentage, when it prints one.
 	Progress func(frac float64)
@@ -70,6 +78,13 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	if len(j.PathDirs) > 0 {
 		dirs := append(slices.Clone(j.PathDirs), os.Getenv("PATH"))
 		cmd.Env = append(cmd.Env, "PATH="+strings.Join(dirs, string(os.PathListSeparator)))
+	}
+	if m.Install.Type == "pip" {
+		env, err := pythonHooks(j.StrictGPUMemory)
+		if err != nil {
+			return "", fmt.Errorf("preparing %s: %w", m.Name, err)
+		}
+		cmd.Env = append(cmd.Env, env...)
 	}
 	pr, pw := io.Pipe()
 	cmd.Stdout, cmd.Stderr = pw, pw
@@ -162,6 +177,7 @@ func (m *Manifest) Command(j Job) []string {
 		}
 		out = append(out, expand(a))
 	}
+	out = append(out, m.optionArgs(j.Options, expand)...)
 	if j.GPU >= 0 {
 		for _, a := range m.GPUArgs {
 			out = append(out, expand(a))
@@ -210,13 +226,30 @@ type RunError struct {
 
 func (e *RunError) Error() string { return e.Engine + " failed: " + e.Summary }
 
-// summarize picks the line that says why a run failed: the last "Error:"
-// line (TouchUp's runner scripts end with one), else the last line that
-// isn't part of a traceback's code listing.
+// exceptionLine matches the last line of a Python traceback, such as
+// "torch.OutOfMemoryError: Allocation on device 0 ...", capturing it
+// without the module path.
+var exceptionLine = regexp.MustCompile(`^(?:[A-Za-z_]\w*\.)*([A-Z]\w*(?:Error|Exception|Interrupt)\b.*)$`)
+
+// summarize picks the line that says why a run failed, in order: the
+// last "Error:" line (TouchUp's runner scripts end with one), the last
+// Python exception, the last line flagged "[ERROR]", else the last line
+// that isn't part of a traceback's code listing. Engines often print a
+// sign-off after failing, so the last line alone can't be trusted.
 func summarize(lines []string) string {
 	for i := len(lines) - 1; i >= 0; i-- {
 		if s, ok := strings.CutPrefix(strings.TrimSpace(lines[i]), "Error: "); ok {
 			return s
+		}
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if m := exceptionLine.FindStringSubmatch(strings.TrimSpace(lines[i])); m != nil {
+			return m[1]
+		}
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if _, s, ok := strings.Cut(lines[i], "[ERROR]"); ok && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
 		}
 	}
 	for i := len(lines) - 1; i >= 0; i-- {

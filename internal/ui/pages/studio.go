@@ -27,10 +27,10 @@ type Studio struct {
 }
 
 // NewStudio creates the studio page.
-func NewStudio(s *store.Store, dragging func() bool, errs *components.ErrorDetails) *Studio {
+func NewStudio(s *store.Store, dragging func() bool, errs *components.ErrorDetails, options *components.EngineSettings) *Studio {
 	st := &Studio{
 		s:         s,
-		inspector: NewInspector(s),
+		inspector: NewInspector(s, options),
 		video:     NewVideoStage(s, errs),
 		audio:     NewAudioStage(s, errs),
 		image:     NewImageStage(s),

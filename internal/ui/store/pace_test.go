@@ -13,8 +13,8 @@ func TestPace(t *testing.T) {
 	if _, ok := p.Left(start.Add(30*time.Second), 0.1); ok {
 		t.Error("guessed before a minute had passed")
 	}
-	if _, ok := p.Left(start.Add(5*time.Minute), 0.022); ok {
-		t.Error("guessed from too little progress")
+	if _, ok := p.Left(start.Add(5*time.Minute), 0.02); ok {
+		t.Error("guessed without any progress")
 	}
 	// 10% of the work in 10 minutes since the first report: the 88%
 	// left takes 88 minutes.

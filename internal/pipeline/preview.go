@@ -70,18 +70,9 @@ func PreviewFrame(ctx context.Context, o Options, path string, at float64, repor
 	sz := o.size(b.Dx(), b.Dy())
 	stage := fmt.Sprintf("Upscaling to %d × %d", sz.Width, sz.Height)
 	report(Update{Stage: stage, Frac: 0.1})
-	j := o.job(frame, filepath.Join(ws.out, "frame"+o.imageExt()), ws.in, ws.out, report, stage, 0.1, 0.95)
-	j.OutputExt = o.imageExt()
-	result, err := o.Engine.Run(ctx, o.sized(j, b.Dx(), b.Dy()))
+	result, err := o.picture(ctx, ws, frame, b.Dx(), b.Dy(), report, stage, 0.1, 0.95)
 	if err != nil {
 		return FramePreview{}, err
-	}
-	if sz.Exact {
-		sized := filepath.Join(ws.out, "frame-sized.png")
-		if err := o.Tools.ConvertImageSized(ctx, result, sized, sz.Width, sz.Height); err != nil {
-			return FramePreview{}, err
-		}
-		result = sized
 	}
 	after, err := o.Tools.LoadImage(ctx, result)
 	return FramePreview{Before: before, After: after}, err

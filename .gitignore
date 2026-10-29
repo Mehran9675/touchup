@@ -1,3 +1,4 @@
 /dist/
 *.keystore
 *.jks
+__pycache__/

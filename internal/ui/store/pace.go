@@ -19,10 +19,10 @@ func (p *Pace) add(frac float64) {
 }
 
 // Left returns the time still needed at frac, once progress has moved
-// far and long enough since the first report to mean something.
+// since the first report and a minute has passed.
 func (p *Pace) Left(now time.Time, frac float64) (time.Duration, bool) {
 	done, took := frac-p.frac, now.Sub(p.at)
-	if p.at.IsZero() || done < 0.005 || took < time.Minute || frac >= 1 {
+	if p.at.IsZero() || done <= 0 || took < time.Minute || frac >= 1 {
 		return 0, false
 	}
 	return time.Duration(float64(took) * (1 - frac) / done).Round(time.Minute), true

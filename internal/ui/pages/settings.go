@@ -37,7 +37,7 @@ type Settings struct {
 
 	mode, image, audio, codec, gpu *segmented.Control
 	quality                        *slider.Slider
-	keepWork                       *toggle.Switch
+	keepWork, sysmem               *toggle.Switch
 	output                         *input.Input
 	tools                          map[string]*input.Input
 	showData                       *giode.ButtonElement
@@ -81,6 +81,10 @@ func NewSettings(s *store.Store) *Settings {
 		update(func(c *settings.Settings) { c.KeepWork = on })
 	})
 	p.keepWork.SetChecked(st.KeepWork)
+	p.sysmem = giode.Input.Switch("").OnChange(func(on bool) {
+		update(func(c *settings.Settings) { c.AllowSystemMemory = on })
+	})
+	p.sysmem.SetChecked(st.AllowSystemMemory)
 
 	p.output = pathField("Next to the original file", st.OutputDir, func(v string) {
 		update(func(c *settings.Settings) { c.OutputDir = v })
@@ -178,6 +182,10 @@ func (p *Settings) content() giode.Element {
 		),
 		section("Hardware",
 			components.SettingRow("GPU", "Which graphics card engines use, when there's more than one.", seg(p.gpu, 340)),
+			components.SettingRow("Use system memory when the GPU is full",
+				"On, a job that doesn't fit in GPU memory carries on in system memory, often ten times slower or worse. "+
+					"Off, it stops with \"out of memory\" so you can pick smaller tiles or batches. Applies to Python engines.",
+				p.sysmem),
 		),
 		section("Tools",
 			tool("ffmpeg", "FFmpeg", s.Tools.FFmpeg, "Needed to read and write video and audio. Install it from ffmpeg.org."),

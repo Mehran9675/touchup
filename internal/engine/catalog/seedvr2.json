@@ -6,47 +6,27 @@
   "description": "One-step diffusion transformer for video and image restoration. Rebuilds real texture with steady detail from frame to frame. The strongest open video upscaler.",
   "homepage": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler",
   "license": "Apache-2.0",
-  "tags": [
-    "Diffusion",
-    "Transformer",
-    "PyTorch"
-  ],
+  "tags": ["Diffusion", "Transformer", "PyTorch"],
   "requirements": "Python 3.10–3.13 · NVIDIA GPU with 8 GB+ (16 GB+ for 7B) · FFmpeg",
-  "media": [
-    "video",
-    "image"
-  ],
+  "media": ["video", "image"],
   "input": "video",
   "imageOutputExt": ".png",
   "install": {
     "type": "pip",
     "size": "≈ 4 GB with PyTorch, plus models",
-    "source": {
-      "url": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler/archive/refs/tags/v2.5.23.zip",
-      "dir": "src"
-    },
+    "source": {"url": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler/archive/refs/tags/v2.5.23.zip", "dir": "src"},
     "pip": [
       {
-        "args": [
-          "torch>=2.7",
-          "torchvision"
-        ],
-        "indexURL": {
-          "windows": "https://download.pytorch.org/whl/cu128"
-        }
+        "args": ["torch>=2.7", "torchvision"],
+        "indexURL": {"windows": "https://download.pytorch.org/whl/cu128"}
       },
-      {
-        "args": [
-          "-r",
-          "{engineDir}/src/requirements.txt"
-        ]
-      }
-    ]
+      {"args": ["-r", "{engineDir}/src/requirements.txt"]}
+    ],
+    "scripts": ["seedvr2_launch.py"]
   },
-  "executable": {
-    "*": "python"
-  },
+  "executable": {"*": "python"},
   "args": [
+    "{engineDir}/seedvr2_launch.py",
     "{engineDir}/src/inference_cli.py",
     "{input}",
     "--output",
@@ -56,46 +36,14 @@
     "{modelArgs}",
     "--resolution",
     "{outShort}",
-    "--batch_size",
-    "21",
-    "--temporal_overlap",
-    "3",
-    "--chunk_size",
-    "42",
-    "--color_correction",
-    "lab",
     "--video_backend",
     "ffmpeg",
     "--vae_encode_tiled",
-    "--vae_encode_tile_size",
-    "512",
-    "--vae_encode_tile_overlap",
-    "64",
-    "--vae_decode_tiled",
-    "--vae_decode_tile_size",
-    "512",
-    "--vae_decode_tile_overlap",
-    "64",
-    "--dit_offload_device",
-    "cpu",
-    "--vae_offload_device",
-    "cpu",
-    "--debug"
+    "--vae_decode_tiled"
   ],
-  "gpuArgs": [
-    "--cuda_device",
-    "{gpu}"
-  ],
+  "gpuArgs": ["--cuda_device", "{gpu}"],
   "outputExt": ".mp4",
-  "progressSteps": [
-    "Chunk (\\d+)/(\\d+)",
-    "Upscaling batch (\\d+)/(\\d+)"
-  ],
-  "scales": [
-    2,
-    3,
-    4
-  ],
+  "scales": [2, 3, 4],
   "defaultScale": 2,
   "models": [
     {
@@ -103,10 +51,7 @@
       "name": "3B · FP8",
       "description": "The default: fast and light, for GPUs with 8–12 GB.",
       "size": "≈ 3.9 GB",
-      "args": [
-        "--dit_model",
-        "seedvr2_ema_3b_fp8_e4m3fn.safetensors"
-      ],
+      "args": ["--dit_model", "seedvr2_ema_3b_fp8_e4m3fn.safetensors"],
       "files": [
         {
           "url": "https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/seedvr2_ema_3b_fp8_e4m3fn.safetensors",
@@ -126,10 +71,7 @@
       "name": "3B · GGUF Q4 · low memory",
       "description": "For 6–8 GB GPUs: smaller weights that fit in less memory.",
       "size": "≈ 2.4 GB",
-      "args": [
-        "--dit_model",
-        "seedvr2_ema_3b-Q4_K_M.gguf"
-      ],
+      "args": ["--dit_model", "seedvr2_ema_3b-Q4_K_M.gguf"],
       "files": [
         {
           "url": "https://huggingface.co/AInVFX/SeedVR2_comfyUI/resolve/main/seedvr2_ema_3b-Q4_K_M.gguf",
@@ -148,10 +90,7 @@
       "name": "7B · FP8 · best quality",
       "description": "The large model: the most convincing texture. Needs 16 GB or more.",
       "size": "≈ 8.6 GB",
-      "args": [
-        "--dit_model",
-        "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors"
-      ],
+      "args": ["--dit_model", "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors"],
       "files": [
         {
           "url": "https://huggingface.co/AInVFX/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
@@ -170,10 +109,7 @@
       "name": "7B Sharp · FP8",
       "description": "The large model tuned for crisper detail.",
       "size": "≈ 8.6 GB",
-      "args": [
-        "--dit_model",
-        "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors"
-      ],
+      "args": ["--dit_model", "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors"],
       "files": [
         {
           "url": "https://huggingface.co/AInVFX/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
@@ -187,5 +123,176 @@
         }
       ]
     }
-  ]
+  ],
+  "options": [
+    {
+      "id": "batch",
+      "name": "Frames per batch",
+      "type": "choice",
+      "default": "21",
+      "description": "Frames the model sees at once. More look steadier from frame to frame and waste less on overlap, but need more GPU memory.",
+      "choices": [
+        {"value": "5", "label": "5"},
+        {"value": "9", "label": "9"},
+        {"value": "13", "label": "13"},
+        {"value": "17", "label": "17"},
+        {"value": "21", "label": "21"},
+        {"value": "29", "label": "29"},
+        {"value": "33", "label": "33"},
+        {"value": "45", "label": "45"},
+        {"value": "61", "label": "61"}
+      ],
+      "args": ["--batch_size", "{value}"]
+    },
+    {
+      "id": "overlap",
+      "name": "Batch overlap",
+      "type": "choice",
+      "default": "3",
+      "description": "Frames shared by neighbouring batches and blended, to hide seams in time.",
+      "choices": [
+        {"value": "0", "label": "None"},
+        {"value": "1", "label": "1 frame"},
+        {"value": "3", "label": "3 frames"},
+        {"value": "5", "label": "5 frames"}
+      ],
+      "args": ["--temporal_overlap", "{value}"]
+    },
+    {
+      "id": "chunk",
+      "name": "Frames in memory",
+      "type": "choice",
+      "default": "72",
+      "description": "How much of a video is read, upscaled and written at a time, rounded to whole batches. More uses more system memory.",
+      "choices": [
+        {"value": "36", "label": "About 36"},
+        {"value": "72", "label": "About 72"},
+        {"value": "144", "label": "About 144"},
+        {"value": "288", "label": "About 288"}
+      ],
+      "args": ["--touchup-chunk-frames", "{value}"]
+    },
+    {
+      "id": "tile",
+      "name": "VAE tile size",
+      "type": "choice",
+      "default": "512",
+      "description": "Pictures are encoded and decoded in tiles of this size. Bigger tiles are faster but need more GPU memory; use 256 or 384 on 6–8 GB cards.",
+      "choices": [
+        {"value": "256", "label": "256 px"},
+        {"value": "384", "label": "384 px"},
+        {"value": "512", "label": "512 px"},
+        {"value": "768", "label": "768 px"},
+        {"value": "1024", "label": "1024 px"}
+      ],
+      "args": ["--vae_encode_tile_size", "{value}", "--vae_decode_tile_size", "{value}"]
+    },
+    {
+      "id": "tileOverlap",
+      "name": "VAE tile overlap",
+      "type": "choice",
+      "default": "64",
+      "description": "Pixels tiles share and blend. Less is faster; too little can show seams.",
+      "choices": [
+        {"value": "32", "label": "32 px"},
+        {"value": "64", "label": "64 px"},
+        {"value": "128", "label": "128 px"}
+      ],
+      "args": ["--vae_encode_tile_overlap", "{value}", "--vae_decode_tile_overlap", "{value}"]
+    },
+    {
+      "id": "vaeMemory",
+      "name": "VAE memory per step",
+      "type": "choice",
+      "default": "0.5",
+      "description": "GPU memory each VAE step may use before it's split into smaller pieces. More is faster on GPUs with room to spare.",
+      "choices": [
+        {"value": "0.5", "label": "0.5 GB"},
+        {"value": "1", "label": "1 GB"},
+        {"value": "2", "label": "2 GB"},
+        {"value": "4", "label": "4 GB"}
+      ],
+      "args": ["--touchup-vae-memory", "{value}"]
+    },
+    {
+      "id": "gpuWork",
+      "name": "Keep work on the GPU",
+      "type": "toggle",
+      "default": "true",
+      "description": "Blend tiles and hold results in GPU memory instead of system memory. Much faster; turn it off if the GPU runs out of memory.",
+      "args": ["--tensor_offload_device", "none"],
+      "argsOff": ["--tensor_offload_device", "cpu"]
+    },
+    {
+      "id": "offload",
+      "name": "Offload models between steps",
+      "type": "toggle",
+      "default": "true",
+      "description": "Move each model to system memory when it isn't running, so the two never share the GPU.",
+      "args": ["--dit_offload_device", "cpu", "--vae_offload_device", "cpu"],
+      "argsOff": ["--dit_offload_device", "none", "--vae_offload_device", "none"]
+    },
+    {
+      "id": "swap",
+      "name": "Model blocks in system memory",
+      "type": "choice",
+      "default": "0",
+      "description": "Keep part of the model in system memory and stream it to the GPU as it runs. Lets big models fit small GPUs, at a cost in speed. Needs offloading on.",
+      "choices": [
+        {"value": "0", "label": "None"},
+        {"value": "8", "label": "8 blocks"},
+        {"value": "16", "label": "16 blocks"},
+        {"value": "24", "label": "24 blocks"},
+        {"value": "32", "label": "32 blocks"}
+      ],
+      "args": ["--blocks_to_swap", "{value}"]
+    },
+    {
+      "id": "cudnn",
+      "name": "Tune GPU kernels",
+      "type": "toggle",
+      "default": "false",
+      "description": "Let cuDNN time its kernels on the first batch and keep the fastest. Can speed up the VAE; uses some extra memory while tuning.",
+      "args": ["--touchup-cudnn-tune"]
+    },
+    {
+      "id": "color",
+      "name": "Color correction",
+      "type": "choice",
+      "default": "lab",
+      "description": "How the result's colors are matched to the original.",
+      "choices": [
+        {"value": "lab", "label": "LAB (perceptual)"},
+        {"value": "wavelet", "label": "Wavelet"},
+        {"value": "wavelet_adaptive", "label": "Wavelet, adaptive"},
+        {"value": "hsv", "label": "HSV"},
+        {"value": "adain", "label": "AdaIN"},
+        {"value": "none", "label": "None"}
+      ],
+      "args": ["--color_correction", "{value}"]
+    },
+    {
+      "id": "touchup.tileImage",
+      "name": "Split large images",
+      "type": "choice",
+      "default": "2048",
+      "description": "The largest picture made in one go, a side. Bigger images are upscaled in overlapping parts and joined, since the model can't split a picture itself and a 12 GB GPU fits about 2048 × 2048.",
+      "choices": [
+        {"value": "0", "label": "Never"},
+        {"value": "1024", "label": "1024 px"},
+        {"value": "1536", "label": "1536 px"},
+        {"value": "2048", "label": "2048 px"},
+        {"value": "3072", "label": "3072 px"}
+      ]
+    },
+    {
+      "id": "debug",
+      "name": "Detailed log",
+      "type": "toggle",
+      "default": "true",
+      "description": "Log each step's time and memory, which helps when something's slow or fails.",
+      "args": ["--debug"]
+    }
+  ],
+  "progressSteps": ["Chunk (\\d+)/(\\d+)", "Upscaling batch (\\d+)/(\\d+)"]
 }

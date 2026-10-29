@@ -2,10 +2,12 @@ package pipeline
 
 import (
 	"context"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/mehran9675/touchup/internal/engine"
@@ -261,4 +263,54 @@ func TestTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	check("whole video", wout, 134, 100)
+}
+
+func TestTiledPicture(t *testing.T) {
+	tools := setup(t)
+	parts := filepath.Join(t.TempDir(), "parts.txt")
+	exe := script(t, `echo "$1" >> "`+parts+`"
+ffmpeg -loglevel error -y -i "$1" -vf "scale=iw*$3:ih*$3:flags=bicubic" "$2"`+"\n")
+	m := &engine.Manifest{
+		ID: "parts", Name: "Parts", Media: []string{"image"}, Input: "image", Scales: []int{2},
+		Executable: map[string]string{"*": exe}, Args: []string{"{input}", "{output}", "{scale}"}, OutputExt: ".png",
+		Options: []engine.Option{{ID: engine.OptionTileImage, Name: "Split", Type: engine.OptionNumber, Default: "0"}},
+	}
+	o := options(t, tools, m)
+	o.EngineOptions = map[string]string{engine.OptionTileImage: "160"}
+
+	in := filepath.Join(t.TempDir(), "in.png")
+	ffmpeg(t, "-f", "lavfi", "-i", "testsrc2=s=200x130", "-frames:v", "1", in)
+	out := filepath.Join(t.TempDir(), "out.png")
+	if err := Image(context.Background(), o, in, out, noReport); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(parts)
+	if n := len(strings.Fields(string(data))); n != 6 {
+		t.Errorf("upscaled in %d parts, want 3 × 2", n)
+	}
+	got, err := readPNG(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := got.Bounds(); b.Dx() != 400 || b.Dy() != 260 {
+		t.Fatalf("got %v, want 400x260", b)
+	}
+
+	// Joined parts match the picture upscaled in one go, but for the
+	// borders the parts had that the whole didn't.
+	whole := filepath.Join(t.TempDir(), "whole.png")
+	ffmpeg(t, "-i", in, "-vf", "scale=400:260:flags=bicubic", whole)
+	ref, err := readPNG(whole)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sum float64
+	for i := range got.Pix {
+		sum += math.Abs(float64(got.Pix[i]) - float64(ref.Pix[i]))
+	}
+	mean := sum / float64(len(got.Pix))
+	t.Logf("mean difference %.3f", mean)
+	if mean > 1.5 {
+		t.Errorf("joined parts differ from the whole by %.2f on average", mean)
+	}
 }
