@@ -210,13 +210,30 @@ type RunError struct {
 
 func (e *RunError) Error() string { return e.Engine + " failed: " + e.Summary }
 
-// summarize picks the line that says why a run failed: the last "Error:"
-// line (TouchUp's runner scripts end with one), else the last line that
-// isn't part of a traceback's code listing.
+// exceptionLine matches the last line of a Python traceback, such as
+// "torch.OutOfMemoryError: Allocation on device 0 ...", capturing it
+// without the module path.
+var exceptionLine = regexp.MustCompile(`^(?:[A-Za-z_]\w*\.)*([A-Z]\w*(?:Error|Exception|Interrupt)\b.*)$`)
+
+// summarize picks the line that says why a run failed, in order: the
+// last "Error:" line (TouchUp's runner scripts end with one), the last
+// Python exception, the last line flagged "[ERROR]", else the last line
+// that isn't part of a traceback's code listing. Engines often print a
+// sign-off after failing, so the last line alone can't be trusted.
 func summarize(lines []string) string {
 	for i := len(lines) - 1; i >= 0; i-- {
 		if s, ok := strings.CutPrefix(strings.TrimSpace(lines[i]), "Error: "); ok {
 			return s
+		}
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if m := exceptionLine.FindStringSubmatch(strings.TrimSpace(lines[i])); m != nil {
+			return m[1]
+		}
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if _, s, ok := strings.Cut(lines[i], "[ERROR]"); ok && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
 		}
 	}
 	for i := len(lines) - 1; i >= 0; i-- {

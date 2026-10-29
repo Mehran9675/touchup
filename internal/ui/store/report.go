@@ -2,6 +2,7 @@ package store
 
 import (
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -21,6 +22,9 @@ func (s *Store) ErrorReport(title, summary, log string) string {
 	if version == "" {
 		version = "development build"
 	}
+	if rev := revision(); rev != "" {
+		version += " (" + rev + ")"
+	}
 	b.WriteString("\nTouchUp " + version + " on " + runtime.GOOS + "/" + runtime.GOARCH + "\n")
 	gpu := "automatic"
 	if s.Settings.GPU >= 0 {
@@ -34,4 +38,30 @@ func (s *Store) ErrorReport(title, summary, log string) string {
 		b.WriteString("\nOutput:\n" + log + "\n")
 	}
 	return b.String()
+}
+
+// revision is the commit TouchUp was built from, marked "+changes" when
+// the build had uncommitted ones, so reports tell builds apart; empty
+// when Go didn't record it.
+func revision() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	var rev, modified string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			rev = s.Value
+		case "vcs.modified":
+			modified = s.Value
+		}
+	}
+	if len(rev) > 7 {
+		rev = rev[:7]
+	}
+	if rev != "" && modified == "true" {
+		rev += "+changes"
+	}
+	return rev
 }
