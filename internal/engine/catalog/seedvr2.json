@@ -61,7 +61,7 @@
     "--temporal_overlap",
     "3",
     "--chunk_size",
-    "42",
+    "72",
     "--color_correction",
     "lab",
     "--video_backend",

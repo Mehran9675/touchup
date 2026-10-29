@@ -4,7 +4,9 @@ package pages
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/mehran9675/giode"
@@ -128,6 +130,12 @@ func (in *Inspector) content() giode.Element {
 				sel.Engine.Name+" is installed, but its models are separate downloads. Pick one on the Engines page."),
 			in.models))
 	}
+	if sel.Ready() && sess.Kind == media.Video && slices.Contains(sel.Engine.Tags, "Diffusion") && sess.Info.Frames > longVideoFrames {
+		sections = append(sections, components.Banner("timer", theme.Warning, "This will take a long time",
+			fmt.Sprintf("%s takes a few seconds per frame, and this video has %s frames: %s on a mid-range GPU. "+
+				"Preview a frame to judge it, or use PyTorch SR for whole episodes; it's many times faster.",
+				sel.Engine.Name, format.Count(sess.Info.Frames), diffusionTime(sess.Info.Frames))))
+	}
 	if sel.Ready() {
 		// Models: the installed ones.
 		var available []*engine.Model
@@ -171,6 +179,21 @@ func (in *Inspector) content() giode.Element {
 		sections = append(sections, in.output(sel))
 	}
 	return giode.Stack(giode.Styles{Width: -1, Gap: 26, Padding: giode.UniformInset(18)}, sections...)
+}
+
+// longVideoFrames is the length, about a minute and a half, past which
+// a diffusion engine's slowness gets a warning.
+const longVideoFrames = 2000
+
+// diffusionTime roughly says how long a diffusion engine takes over
+// frames, at the 2.5 seconds a frame SeedVR2's 3B model managed for
+// 1080p on a 12 GB RTX 5070.
+func diffusionTime(frames int) string {
+	hours := float64(frames) * 2.5 / 3600
+	if hours < 2 {
+		return "over an hour"
+	}
+	return fmt.Sprintf("about %d hours", int(math.Round(hours)))
 }
 
 // output summarizes the file the upscale will write.

@@ -4,6 +4,7 @@ package format
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -95,4 +96,13 @@ func Remaining(d time.Duration) string {
 		return fmt.Sprintf("%d min", m)
 	}
 	return fmt.Sprintf("%dh %02dm", m/60, m%60)
+}
+
+// Count formats a count with thousands separators: "35,787".
+func Count(n int) string {
+	s := strconv.Itoa(n)
+	for i := len(s) - 3; i > 0 && s[i-1] != '-'; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
 }
