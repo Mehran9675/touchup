@@ -56,9 +56,11 @@ The strongest engines are listed first.
 PyTorch SR runs every model through `spandrel_runner.py`, a script TouchUp ships into the
 engine's folder. It tiles large images to fit in GPU memory, keeps transparency, scales 4x models
 down to 2x or 3x when asked, and by default restores the original's colors where a model drifts
-on saturated hues (`--no-color-fix` turns that off in a custom manifest). When the GPU can't run a
-model (a card too old for the installed PyTorch, or a half-precision fault), it retries in full
-precision and then on the CPU, and a failure ends with one `Error:` line that TouchUp shows. Installed PyTorch engines have a
+on saturated hues (`--no-color-fix` turns that off in a custom manifest). On an NVIDIA GPU it runs
+in half precision, or in bfloat16 for models that overflow in half (DRCT, DAT, ATD, HAT, SwinIR),
+through autocast with the weights kept in float32. When the GPU can't run a model (a card too old
+for the installed PyTorch, or output that overflows), it retries in full precision and then on the
+CPU, and a failure ends with one `Error:` line that TouchUp shows. Installed PyTorch engines have a
 **Check GPU** button that reports the PyTorch and CUDA versions, the GPU and its compute
 capability, and whether a small test runs on it in full and half precision.
 

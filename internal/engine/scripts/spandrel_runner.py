@@ -61,12 +61,18 @@ def describe_device(device):
 
 # What a GPU raises when it can't run a model: CUDA errors are
 # RuntimeErrors, and newer PyTorch has its own AcceleratorError.
-GPU_ERRORS = (RuntimeError,) + ((torch.AcceleratorError,) if hasattr(torch, "AcceleratorError") else ())
+# FloatingPointError is a model overflowing in reduced precision.
+GPU_ERRORS = (RuntimeError, FloatingPointError) + ((torch.AcceleratorError,) if hasattr(torch, "AcceleratorError") else ())
 
 
 class Upscaler:
-    """A loaded model that steps down when the GPU can't run it: from half
-    to full precision, then from the GPU to the CPU."""
+    """A loaded model that steps down when the GPU can't run it: from
+    reduced to full precision, then from the GPU to the CPU.
+
+    The weights stay in float32 and reduced precision comes from autocast,
+    which casts each operation's inputs. Casting the weights instead breaks
+    models that build tensors as they run, such as the attention masks of
+    DRCT, ATD, HAT and SwinIR, which are float32 whatever the weights are."""
 
     def __init__(self, path, device):
         self.model = spandrel.ModelLoader(device=torch.device("cpu")).load_from_file(path)
@@ -86,7 +92,9 @@ class Upscaler:
     def place(self, device, dtype):
         self.device, self.dtype = device, dtype
         self.model.to(device)
-        self.model.to(dtype)
+
+    def precision(self):
+        return {torch.float16: "half precision", torch.bfloat16: "bfloat16"}.get(self.dtype, "full precision")
 
     def step_down(self, err):
         """Moves to a safer setting after err, or returns False when there
@@ -95,7 +103,7 @@ class Upscaler:
         if self.device.type == "cpu":
             return False
         if self.dtype != torch.float32:
-            print(f"The GPU failed in half precision ({reason}); retrying in full precision", flush=True)
+            print(f"The GPU failed in {self.precision()} ({reason}); retrying in full precision", flush=True)
             self.place(self.device, torch.float32)
         else:
             print(f"The GPU failed ({reason}); continuing on the CPU, which is much slower", flush=True)
@@ -134,7 +142,8 @@ class Progress:
 @torch.inference_mode()
 def upscale(up, rgb, tile, progress):
     """Upscales an HxWx3 float32 array in [0, 1] by the model's scale."""
-    model, dtype, device = up.model, up.dtype, up.device
+    model, device = up.model, up.device
+    autocast = torch.autocast(device.type, dtype=up.dtype, enabled=up.dtype != torch.float32)
     scale = model.scale
     h, w, _ = rgb.shape
     src = torch.from_numpy(np.ascontiguousarray(rgb.transpose(2, 0, 1))).unsqueeze(0)
@@ -145,9 +154,12 @@ def upscale(up, rgb, tile, progress):
         for x in range(0, w, tile):
             y0, x0 = max(0, y - overlap), max(0, x - overlap)
             y1, x1 = min(h, y + tile + overlap), min(w, x + tile + overlap)
-            part = src[:, :, y0:y1, x0:x1].to(device=device, dtype=dtype)
-            res = model(pad_to(part, model.size_requirements))
+            part = src[:, :, y0:y1, x0:x1].to(device=device)
+            with autocast:
+                res = model(pad_to(part, model.size_requirements))
             res = res[:, :, : (y1 - y0) * scale, : (x1 - x0) * scale]
+            if not torch.isfinite(res).all():
+                raise FloatingPointError(f"the model's output overflowed in {up.precision()}")
             res = res.float().clamp_(0, 1).squeeze(0).permute(1, 2, 0).cpu().numpy()
             # Keep the tile's own area; the overlap only gave it context.
             ty, tx = (y - y0) * scale, (x - x0) * scale
@@ -251,8 +263,8 @@ def main():
         device = torch.device("cpu")
     up = Upscaler(args.model, device)
     scale = args.scale or up.model.scale
-    print(f"Loaded {up.model.architecture.name} {up.model.scale}x on {describe_device(up.device)}, "
-          f"PyTorch {torch.__version__}", flush=True)
+    print(f"Loaded {up.model.architecture.name} {up.model.scale}x on {describe_device(up.device)} "
+          f"in {up.precision()}, PyTorch {torch.__version__}", flush=True)
 
     if os.path.isdir(args.input):
         os.makedirs(args.output, exist_ok=True)
