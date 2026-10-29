@@ -13,6 +13,9 @@ import (
 // too long for a card or banner. One is shared by every page.
 type ErrorDetails struct {
 	title, text string
+	subtitle    string
+	icon        string
+	tone        giode.Color
 	open        bool
 	dialog      *dialog.Dialog
 	copy        giode.Element
@@ -37,9 +40,15 @@ func NewErrorDetails() *ErrorDetails {
 	return d
 }
 
-// Show opens the dialog with a title and the full text.
+// Show opens the dialog with a title and the full text of an error.
 func (d *ErrorDetails) Show(title, text string) {
-	d.title, d.text, d.open = title, text, true
+	d.ShowReport(title, "The last lines it printed. Copy them to report the problem.", text, "triangle-alert", theme.Danger)
+}
+
+// ShowReport opens the dialog for any long text, such as a diagnostic
+// report, with its own subtitle, icon and tone.
+func (d *ErrorDetails) ShowReport(title, subtitle, text, icon string, tone giode.Color) {
+	d.title, d.subtitle, d.text, d.icon, d.tone, d.open = title, subtitle, text, icon, tone, true
 	d.log.ScrollToBottom()
 }
 
@@ -52,10 +61,10 @@ func (d *ErrorDetails) Dialog() giode.Element { return d.dialog }
 func (d *ErrorDetails) view() giode.Element {
 	return giode.Stack(giode.Styles{Width: 680, Gap: 16},
 		giode.Row(giode.Styles{Gap: 12, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
-			IconBubble("triangle-alert", theme.Danger, 40),
+			IconBubble(d.icon, d.tone, 40),
 			giode.Stack(giode.Styles{Gap: 2, FlexGrow: 1},
 				giode.Text(d.title, theme.Heading().With(giode.Styles{FontSize: 18})),
-				giode.Text("The last lines it printed. Copy them to report the problem.", theme.Secondary()),
+				giode.Text(d.subtitle, theme.Secondary()),
 			),
 		),
 		giode.Box(giode.Styles{

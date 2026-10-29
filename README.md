@@ -55,7 +55,9 @@ engine's folder. It tiles large images to fit in GPU memory, keeps transparency,
 down to 2x or 3x when asked, and by default restores the original's colors where a model drifts
 on saturated hues (`--no-color-fix` turns that off in a custom manifest). When the GPU can't run a
 model (a card too old for the installed PyTorch, or a half-precision fault), it retries in full
-precision and then on the CPU, and a failure ends with one `Error:` line that TouchUp shows.
+precision and then on the CPU, and a failure ends with one `Error:` line that TouchUp shows. Installed PyTorch engines have a
+**Check GPU** button that reports the PyTorch and CUDA versions, the GPU and its compute
+capability, and whether a small test runs on it in full and half precision.
 
 Engines are installed per user into `~/.local/share/TouchUp/engines` (Linux),
 `~/Library/Application Support/TouchUp/engines` (macOS) or `%LOCALAPPDATA%\TouchUp\engines`

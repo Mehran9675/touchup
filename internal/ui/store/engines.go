@@ -167,3 +167,12 @@ func (s *Store) UninstallModel(m *engine.Manifest, mdl *engine.Model) {
 	s.refreshInstalled()
 	s.Toasts.Show(giode.ToastInfo, mdl.Name+" was removed")
 }
+
+// CheckGPU runs an engine's GPU check in the background and calls done
+// with its report on the UI goroutine.
+func (s *Store) CheckGPU(m *engine.Manifest, done func(report string, err error)) {
+	go func() {
+		report, err := engine.CheckGPU(context.Background(), m)
+		s.post(func() { done(report, err) })
+	}()
+}

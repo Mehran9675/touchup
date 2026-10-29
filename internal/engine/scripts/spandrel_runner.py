@@ -39,6 +39,18 @@ def pick_device(gpu):
     return torch.device("cpu")
 
 
+def supports(device):
+    """Whether this PyTorch build has kernels for a CUDA device: native
+    ones for its architecture, or PTX it can compile for it."""
+    if device.type != "cuda":
+        return True
+    i = device.index if device.index is not None else torch.cuda.current_device()
+    major, minor = torch.cuda.get_device_capability(i)
+    arches = torch.cuda.get_arch_list()
+    return f"sm_{major}{minor}" in arches or any(
+        a.startswith("compute_") and a[8:].isdigit() and int(a[8:]) <= major * 10 + minor for a in arches)
+
+
 def describe_device(device):
     if device.type != "cuda":
         return str(device)
@@ -233,6 +245,10 @@ def main():
     args = ap.parse_args()
 
     device = pick_device(args.gpu)
+    if not supports(device):
+        print(f"This PyTorch (CUDA {torch.version.cuda}) has no kernels for {describe_device(device)}; "
+              "running on the CPU. Reinstall the engine to get a PyTorch for this GPU.", flush=True)
+        device = torch.device("cpu")
     up = Upscaler(args.model, device)
     scale = args.scale or up.model.scale
     print(f"Loaded {up.model.architecture.name} {up.model.scale}x on {describe_device(up.device)}, "
