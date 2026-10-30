@@ -145,7 +145,10 @@ func scanCatalog(path string, msgs map[string]bool) []string {
 		Description  string   `json:"description"`
 		Requirements string   `json:"requirements"`
 		Tags         []string `json:"tags"`
-		Models       []struct {
+		Install      struct {
+			Size string `json:"size"`
+		} `json:"install"`
+		Models []struct {
 			Name, Description string
 		} `json:"models"`
 		Options []struct {
@@ -164,6 +167,9 @@ func scanCatalog(path string, msgs map[string]bool) []string {
 		if words.MatchString(placeholder.ReplaceAllString(s, "")) {
 			msgs[s] = msgs[s] || false
 		}
+	}
+	if !bareSize.MatchString(m.Install.Size) {
+		add(m.Install.Size)
 	}
 	add(m.Description)
 	add(m.Requirements)
@@ -185,6 +191,9 @@ func scanCatalog(path string, msgs map[string]bool) []string {
 }
 
 var placeholder = regexp.MustCompile(`\{[A-Za-z0-9_]+\}`)
+
+// bareSize matches a size alone, "30 MB", which needs no translation.
+var bareSize = regexp.MustCompile(`^≈?\s?[\d.]+\s?[KMG]B$`)
 
 // words matches text worth translating: labels like "2 · 2 · 4" and
 // "29" read the same in every language.

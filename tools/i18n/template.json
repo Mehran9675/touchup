@@ -563,5 +563,12 @@
   "{running} running · {waiting} waiting · {finished} finished": "{running} running · {waiting} waiting · {finished} finished",
   "{scale}x, then resized": "{scale}x, then resized",
   "{seconds} s a frame": "{seconds} s a frame",
-  "{s}s": "{s}s"
+  "{s}s": "{s}s",
+  "≈ 3 GB with PyTorch, plus models": "≈ 3 GB with PyTorch, plus models",
+  "≈ 3 GB with PyTorch, plus the model": "≈ 3 GB with PyTorch, plus the model",
+  "≈ 4 GB with PyTorch, plus models": "≈ 4 GB with PyTorch, plus models",
+  "≈2 GB with PyTorch": "≈2 GB with PyTorch",
+  "≈3 GB with PyTorch": "≈3 GB with PyTorch",
+  "≈4 GB with PyTorch": "≈4 GB with PyTorch",
+  "≈6 GB with PyTorch": "≈6 GB with PyTorch"
 }

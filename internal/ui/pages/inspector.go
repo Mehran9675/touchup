@@ -217,13 +217,13 @@ func (in *Inspector) engineSettings(m *engine.Manifest) giode.Element {
 	}
 	if m.Tune != nil && in.s.Session.Kind == media.Video {
 		in.tune.Disabled(!in.s.CanTune())
+		// Text first and the button under it: translations run long.
 		group = append(group,
-			giode.Row(giode.Styles{Width: -1, Gap: 12, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
-				giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(
-					tr.T("Time the settings on {seconds} seconds of this video and keep the fastest. Each try takes about as long as upscaling that clip.", "seconds", tr.Decimal(m.Tune.Seconds, 0)),
-					theme.Caption())),
-				in.tune,
-			))
+			giode.Text(
+				tr.T("Time the settings on {seconds} seconds of this video and keep the fastest. Each try takes about as long as upscaling that clip.", "seconds", tr.Decimal(m.Tune.Seconds, 0)),
+				theme.Caption()),
+			in.tune,
+		)
 	}
 	return giode.Stack(giode.Styles{Gap: 10, Width: -1}, group...)
 }

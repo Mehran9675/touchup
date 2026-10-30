@@ -65,7 +65,7 @@ func EngineCard(p EngineCardProps) giode.Element {
 	}
 	detail := []string{}
 	if m.Install.Size != "" {
-		detail = append(detail, m.Install.Size)
+		detail = append(detail, tr.T(m.Install.Size))
 	}
 	if len(m.Scales) > 0 {
 		s := make([]string, len(m.Scales))
