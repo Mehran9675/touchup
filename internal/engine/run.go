@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mehran9675/touchup/internal/proc"
+	"github.com/mehran9675/touchup/internal/tr"
 )
 
 // Job is one run of an engine.
@@ -63,10 +64,10 @@ var defaultProgress = regexp.MustCompile(`(\d+(?:\.\d+)?)\s*%`)
 func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	exe := m.ExecutablePath()
 	if exe == "" {
-		return "", fmt.Errorf("%s is not installed", m.Name)
+		return "", errors.New(tr.T("{engine} is not installed", "engine", m.Name))
 	}
 	if j.Model != nil && !m.ModelInstalled(j.Model) {
-		return "", fmt.Errorf("the %s model of %s is not installed", j.Model.Name, m.Name)
+		return "", errors.New(tr.T("the {model} model of {engine} is not installed", "model", tr.T(j.Model.Name), "engine", m.Name))
 	}
 	if err := installScripts(m); err != nil {
 		return "", fmt.Errorf("updating %s's scripts: %w", m.Name, err)
@@ -131,7 +132,7 @@ func (m *Manifest) Run(ctx context.Context, j Job) (string, error) {
 	if found := newestOutput(j.OutputDir, ext, started); found != "" {
 		return found, nil
 	}
-	return "", &RunError{Engine: m.Name, Summary: "finished without writing a " + ext + " file", Log: tail.String()}
+	return "", &RunError{Engine: m.Name, Summary: tr.T("finished without writing a {ext} file", "ext", ext), Log: tail.String()}
 }
 
 // Command returns the engine's arguments with the placeholders filled in.
@@ -224,7 +225,9 @@ type RunError struct {
 	Log     string
 }
 
-func (e *RunError) Error() string { return e.Engine + " failed: " + e.Summary }
+func (e *RunError) Error() string {
+	return tr.T("{engine} failed: {reason}", "engine", e.Engine, "reason", e.Summary)
+}
 
 // exceptionLine matches the last line of a Python traceback, such as
 // "torch.OutOfMemoryError: Allocation on device 0 ...", capturing it
@@ -259,7 +262,7 @@ func summarize(lines []string) string {
 		}
 		return l
 	}
-	return "it exited without saying why"
+	return tr.T("it exited without saying why")
 }
 
 // LogOf returns the engine output behind err, if it's a RunError.

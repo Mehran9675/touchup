@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/mehran9675/touchup/internal/engine"
+	"github.com/mehran9675/touchup/internal/tr"
 )
 
 // picture upscales the w×h PNG at src and returns a PNG of the planned
@@ -54,7 +55,7 @@ func (o Options) picture(ctx context.Context, ws *workspace, src string, w, h in
 			if err := ctx.Err(); err != nil {
 				return "", err
 			}
-			part := fmt.Sprintf("%s · part %d of %d", stage, n+1, total)
+			part := stage + " · " + tr.T("part {part} of {total}", "part", n+1, "total", total)
 			pfrom := from + (to-from)*float64(n)/float64(total)
 			pto := from + (to-from)*float64(n+1)/float64(total)
 			report(Update{Stage: part, Frac: pfrom})

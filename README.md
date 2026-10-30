@@ -43,6 +43,11 @@ before/after comparisons. Nothing is uploaded.
   spilling back on.
 - **Output control.** PNG/JPEG/WebP, H.264/H.265/ProRes with a quality setting, WAV/FLAC/MP3,
   GPU selection, and a custom output folder.
+- In 26 languages: English, Bulgarian, Croatian, Czech, Danish, Dutch, Estonian, Finnish,
+  French, German, Greek, Hungarian, Irish, Italian, Latvian, Lithuanian, Maltese, Norwegian
+  Bokmål, Polish, Portuguese, Romanian, Slovak, Slovenian, Spanish, Swedish and Ukrainian, with
+  each language's own number formats. It follows the system's language, or the one chosen in
+  **Settings → Language**.
 - Dark and light themes, file drop, and "Open with TouchUp" on every desktop.
 - A custom title bar on Windows. Linux and macOS keep the system frame, because Gio can't
   resize a frameless window from its edges there; set `TOUCHUP_CUSTOM_FRAME=1` to use the
@@ -189,6 +194,7 @@ Custom manifests are stored next to the installed engines, in `custom-engines/`.
 main.go                 window setup and the root view
 assets/                 app icon, Inter font, Lucide icons (with their licenses)
 tools/icon/             draws assets/icon.png: go run ./tools/icon assets/icon.png
+tools/i18n/             lists the messages and checks the translations (see Translations)
 internal/
   engine/               manifests, the built-in catalog, install, run
   media/                FFmpeg: probe, frames, clips, waveforms, spectrograms, playback
@@ -201,8 +207,26 @@ internal/
     pages/              Studio (with its stages and inspector), Engines, Queue, Settings
     components/         reusable components, one per file
     theme/, draw/       colors, type, buttons, icons; custom painting helpers
-    format/             durations, sizes and rates as text
+    format/             durations, sizes and rates as text, in the user's language
+  tr/                   translation: tr.T and tr.N, number formats, the language list
 ```
+
+## Translations
+
+Messages are their English text: `tr.T("Saved to {folder}", "folder", dir)`, or for plurals
+`tr.N("{count} engines installed", n)` with the English forms in `assets/locales/en.json`. A
+translation is `assets/locales/<code>.json`, keyed by the English text and embedded in the app;
+a message it lacks shows in English. The built-in engines' descriptions, tags, model names and
+settings are translated the same way, while custom engines show as their manifests say.
+
+```sh
+go run ./tools/i18n -write   # rewrite tools/i18n/template.json from the code and catalog
+go run ./tools/i18n          # report missing, unused and mismatched messages per language
+```
+
+`tools/i18n/BRIEF.md` is the guide for translators: what to keep, placeholders, and each
+language's plural forms. To add a language, translate the template into a new file and add it
+to `internal/tr/languages.go`.
 
 ## License
 
